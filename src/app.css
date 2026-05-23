@@ -3,6 +3,8 @@
 @import "shadcn-svelte/tailwind.css";
 @import "@fontsource-variable/jetbrains-mono";
 @import "@fontsource-variable/public-sans";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/inter";
 @custom-variant dark (&:is(.dark *));
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
@@ -13,7 +15,7 @@
 	--bg: #fff;
 	--border: oklch(0.922 0.005 325.62);
 	--code-bg: #f4f3ec;
-	--accent: oklch(0.96 0.003 325.6);
+	--accent: oklch(0.841 0.238 128.85);
 	--accent-bg: rgba(170, 59, 255, 0.1);
 	--accent-border: rgba(170, 59, 255, 0.5);
 	--social-bg: rgba(244, 243, 236, 0.5);
@@ -45,7 +47,7 @@
 	--secondary-foreground: oklch(0.21 0.006 285.885);
 	--muted: oklch(0.96 0.003 325.6);
 	--muted-foreground: oklch(0.542 0.034 322.5);
-	--accent-foreground: oklch(0.212 0.019 322.12);
+	--accent-foreground: oklch(0.405 0.101 131.063);
 	--destructive: oklch(0.577 0.245 27.325);
 	--input: oklch(0.922 0.005 325.62);
 	--ring: oklch(0.711 0.019 323.02);
@@ -72,7 +74,7 @@
 		--bg: #16171d;
 		--border: oklch(0.922 0.005 325.62);
 		--code-bg: #1f2028;
-		--accent: oklch(0.96 0.003 325.6);
+		--accent: oklch(0.841 0.238 128.85);
 		--accent-bg: rgba(192, 132, 252, 0.15);
 		--accent-border: rgba(192, 132, 252, 0.5);
 		--social-bg: rgba(47, 48, 58, 0.5);
@@ -89,7 +91,7 @@
 		--secondary-foreground: oklch(0.21 0.006 285.885);
 		--muted: oklch(0.96 0.003 325.6);
 		--muted-foreground: oklch(0.542 0.034 322.5);
-		--accent-foreground: oklch(0.212 0.019 322.12);
+		--accent-foreground: oklch(0.405 0.101 131.063);
 		--destructive: oklch(0.577 0.245 27.325);
 		--input: oklch(0.922 0.005 325.62);
 		--ring: oklch(0.711 0.019 323.02);
@@ -354,8 +356,8 @@ code {
 	--secondary-foreground: oklch(0.985 0 0);
 	--muted: oklch(0.263 0.024 320.12);
 	--muted-foreground: oklch(0.711 0.019 323.02);
-	--accent: oklch(0.263 0.024 320.12);
-	--accent-foreground: oklch(0.985 0 0);
+	--accent: oklch(0.768 0.233 130.85);
+	--accent-foreground: oklch(0.405 0.101 131.063);
 	--destructive: oklch(0.704 0.191 22.216);
 	--border: oklch(1 0 0 / 10%);
 	--input: oklch(1 0 0 / 15%);
@@ -377,7 +379,7 @@ code {
 
 @theme inline {
 	--font-mono: 'JetBrains Mono Variable', monospace;
-	--font-heading: 'Public Sans Variable', sans-serif;
+	--font-heading: 'Inter Variable', sans-serif;
 	--color-sidebar-ring: var(--sidebar-ring);
 	--color-sidebar-border: var(--sidebar-border);
 	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -416,6 +418,7 @@ code {
 	--radius-2xl: calc(var(--radius) * 1.8);
 	--radius-3xl: calc(var(--radius) * 2.2);
 	--radius-4xl: calc(var(--radius) * 2.6);
+	--font-sans: 'Geist Variable', sans-serif;
 }
 @layer base {
 	* {
@@ -425,6 +428,6 @@ code {
 		@apply bg-background text-foreground;
 	}
 	html {
-		@apply font-mono;
+		@apply font-sans;
 	}
 }
