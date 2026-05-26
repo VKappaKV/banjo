@@ -23,6 +23,7 @@
     "@tsconfig/svelte": "^5.0.8",
     "@types/node": "^24.12.3",
     "clsx": "^2.1.1",
+    "fake-indexeddb": "^6.2.5",
     "remixicon-svelte": "^0.0.5",
     "shadcn-svelte": "^1.2.7",
     "svelte": "^5.55.5",
@@ -38,6 +39,7 @@
   "dependencies": {
     "@algorandfoundation/algokit-utils": "^9.2.0",
     "algosdk": "^3.5.2",
-    "buffer": "^6.0.3"
+    "buffer": "^6.0.3",
+    "idb": "^8.0.3"
   }
 }
