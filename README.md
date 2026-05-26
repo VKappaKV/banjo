@@ -1,47 +1,39 @@
-# Svelte + TS + Vite
+# Banjo
 
-This template should help get you started developing with Svelte and TypeScript in Vite.
+Banjo is a Svelte wallet application being built around a framework-neutral wallet core. Wallet behavior should live in TypeScript modules under `src/lib/core`; Svelte components should handle presentation, user input, and browser UI wiring.
 
-## Recommended IDE Setup
+## Development Scripts
 
-[VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode).
+- `pnpm dev` starts the Vite development server.
+- `pnpm build` creates a production build.
+- `pnpm preview` serves the production build locally.
+- `pnpm check` runs Svelte and TypeScript checks. This is the minimum verification command for every implementation slice.
+- `pnpm test` runs unit tests once with Vitest.
+- `pnpm test:watch` runs unit tests in watch mode.
 
-## Need an official Svelte framework?
+## Architecture Notes
 
-Check out [SvelteKit](https://github.com/sveltejs/kit#readme), which is also powered by Vite. Deploy anywhere with its serverless-first approach and adapt to various platforms, with out of the box support for TypeScript, SCSS, and Less, and easily-added support for mdsvex, GraphQL, PostCSS, Tailwind CSS, and more.
+- Core wallet logic belongs in `src/lib/core` once that directory exists.
+- UI-only behavior belongs in Svelte components and route-level modules.
+- Core modules must not import `.svelte` files, Svelte stores, routes, or UI state.
+- Browser globals and extension APIs should be isolated behind adapters.
+- Generated clients and cryptographic utilities should be copied or regenerated artifacts, not hand-rewritten code.
 
-## Technical considerations
+## Runtime Targets
 
-**Why use this over SvelteKit?**
+Banjo v1 targets these runtime modes from the start:
 
-- It brings its own routing solution which might not be preferable for some users.
-- It is first and foremost a framework that just happens to use Vite under the hood, not a Vite app.
+- Normal web app.
+- Browser extension side panel.
+- Internal modal signer.
+- Standalone popup.
 
-This template contains as little as possible to get started with Vite + TypeScript + Svelte, while taking into account the developer experience with regards to HMR and intellisense. It demonstrates capabilities on par with the other `create-vite` templates and is a good starting point for beginners dipping their toes into a Vite + Svelte project.
+## Migration Decisions
 
-Should you later need the extended capabilities and extensibility provided by SvelteKit, the template has been structured similarly to SvelteKit so that it is easy to migrate.
+- Banjo v1 starts with a separate Banjo IndexedDB database. Existing wallet IndexedDB data is not migrated in the first port.
+- Banjo exposes `window.banjo` only for extension detection. It does not expose a legacy compatibility alias in v1.
+- Wallet-branded identifiers are renamed to Banjo identifiers during the port. Neutral protocol and domain names remain unchanged when they are not wallet-branded, such as `WalletTransaction`, `Arc55App`, `Network`, and `SeedData`.
 
-**Why `global.d.ts` instead of `compilerOptions.types` inside `jsconfig.json` or `tsconfig.json`?**
+## Roadmap
 
-Setting `compilerOptions.types` shuts out all other types not explicitly listed in the configuration. Using triple-slash references keeps the default TypeScript setting of accepting type information from the entire workspace, while also adding `svelte` and `vite/client` type information.
-
-**Why include `.vscode/extensions.json`?**
-
-Other templates indirectly recommend extensions via the README, but this file allows VS Code to prompt the user to install the recommended extension upon opening the project.
-
-**Why enable `allowJs` in the TS template?**
-
-While `allowJs: false` would indeed prevent the use of `.js` files in the project, it does not prevent the use of JavaScript syntax in `.svelte` files. In addition, it would force `checkJs: false`, bringing the worst of both worlds: not being able to guarantee the entire codebase is TypeScript, and also having worse typechecking for the existing JavaScript. In addition, there are valid use cases in which a mixed codebase may be relevant.
-
-**Why is HMR not preserving my local component state?**
-
-HMR state preservation comes with a number of gotchas! It has been disabled by default in both `svelte-hmr` and `@sveltejs/vite-plugin-svelte` due to its often surprising behavior. You can read the details [here](https://github.com/rixo/svelte-hmr#svelte-hmr).
-
-If you have state that's important to retain within a component, consider creating an external store which would not be replaced by HMR.
-
-```ts
-// store.ts
-// An extremely simple external store
-import { writable } from 'svelte/store'
-export default writable(0)
-```
+The progressive implementation roadmap is tracked in `.plans/11-progressive-roadmap-implementation.md`.
