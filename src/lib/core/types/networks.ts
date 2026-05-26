@@ -17,7 +17,6 @@ export interface Network {
 	genesisHash?: string;
 	explorer: string;
 	nfdUrl?: string;
-	envoiUrl?: string;
 	inboxRouter?: number;
 	lutier?: { app: number; asset: number };
 }

@@ -123,23 +123,5 @@
     },
     "genesisID": "dockernet-v1",
     "explorer": "https://lora.algokit.io/localnet"
-  },
-  {
-    "name": "Voi MainNet",
-    "algod": {
-      "url": "https://mainnet-api.voi.nodely.dev",
-      "port": "",
-      "token": ""
-    },
-    "indexer": {
-      "url": "https://mainnet-idx.voi.nodely.dev",
-      "port": "",
-      "token": ""
-    },
-    "genesisID": "voimain-v1.0",
-    "genesisHash": "r20fSQI8gWe/kFZziNonSPCXLwcQmH/nxROvnnueWOk=",
-    "explorer": "https://explorer.voi.network/explorer",
-    "envoiUrl": "https://api.envoi.sh/api",
-    "lutier": { "app": 399577, "asset": 399049 }
   }
 ]

@@ -174,13 +174,9 @@ export function selectMsigSigner(app: Arc55App, signingAccounts: AccountInfo[]):
 	return member;
 }
 
-export function isVoiNetwork(networkName: string): boolean {
-	return networkName.startsWith("Voi");
-}
-
-export function getNativeAsset(networkName: string): modelsv2.Asset {
+export function getNativeAsset(_networkName: string): modelsv2.Asset {
 	return {
 		index: 0n,
-		params: { name: isVoiNetwork(networkName) ? "Voi" : "Algo" },
+		params: { name: "Algo" },
 	} as modelsv2.Asset;
 }

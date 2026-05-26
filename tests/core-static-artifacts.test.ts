@@ -23,7 +23,6 @@ describe("core static artifacts", () => {
 			"BetaNet",
 			"FNet",
 			"LocalNet",
-			"Voi MainNet",
 		]);
 	});
 
@@ -32,7 +31,6 @@ describe("core static artifacts", () => {
 		const mainnet = byName.get("MainNet");
 		const testnet = byName.get("TestNet");
 		const localnet = byName.get("LocalNet");
-		const voiMainnet = byName.get("Voi MainNet");
 
 		expect(mainnet?.algod.url).toBe("https://mainnet-api.4160.nodely.io");
 		expect(mainnet?.indexer?.url).toBe("https://mainnet-idx.4160.nodely.io");
@@ -49,8 +47,6 @@ describe("core static artifacts", () => {
 			token: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		});
 
-		expect(voiMainnet?.envoiUrl).toBe("https://api.envoi.sh/api");
-		expect(voiMainnet?.genesisID).toBe("voimain-v1.0");
 	});
 
 	it("constructs the ARC-55 ABI contract", () => {

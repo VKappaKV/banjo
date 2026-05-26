@@ -2,7 +2,6 @@ export { loadWalletState } from "./load-wallet-state";
 export type { LoadWalletStateOptions } from "./load-wallet-state";
 export {
 	getNativeAsset,
-	isVoiNetwork,
 	selectAccountInfo,
 	selectAllNetworks,
 	selectMsigSigner,
