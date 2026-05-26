@@ -14,6 +14,7 @@ Banjo is a Svelte wallet application being built around a framework-neutral wall
 ## Architecture Notes
 
 - Core wallet logic belongs in `src/lib/core` once that directory exists.
+- Stable core APIs should be imported through `$core` when possible.
 - UI-only behavior belongs in Svelte components and route-level modules.
 - Core modules must not import `.svelte` files, Svelte stores, routes, or UI state.
 - Browser globals and extension APIs should be isolated behind adapters.

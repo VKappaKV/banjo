@@ -7,5 +7,10 @@ import path from "path";
 export default defineConfig({
   plugins: [tailwindcss(), svelte()],
   server: { port: 9000 },
-  resolve: { alias: { $lib: path.resolve("./src/lib") } }
+  resolve: {
+    alias: {
+      $core: path.resolve("./src/lib/core"),
+      $lib: path.resolve("./src/lib")
+    }
+  }
 });

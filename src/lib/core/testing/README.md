@@ -2,9 +2,9 @@
 
 This directory will hold reusable core test doubles as the wallet interfaces are introduced.
 
-Planned placeholders:
+Current non-API placeholders:
 
-- Mock runtime.
-- Mock storage.
-- Mock credential provider.
-- Mock ledger provider.
+- `mock-runtime.ts` for `WalletRuntime` test doubles.
+- `mock-storage.ts` for `WalletStorage` test doubles.
+- `mock-credential.ts` for `CredentialProvider` test doubles.
+- `mock-ledger.ts` for `LedgerProvider` test doubles.
