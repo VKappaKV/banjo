@@ -29,6 +29,14 @@ export class MockLedgerProvider implements LedgerProvider {
 		return this.signature;
 	}
 
+	async signData(): Promise<Uint8Array> {
+		if (this.rejectMessage) {
+			throw new Error(this.rejectMessage);
+		}
+
+		return this.signature;
+	}
+
 	async close(): Promise<void> {
 		this.closed = true;
 	}

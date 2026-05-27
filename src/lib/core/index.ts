@@ -6,6 +6,7 @@ export * from "./keys";
 export * from "./network";
 export * from "./assets";
 export * from "./runtime";
+export * from "./signing";
 export * from "./state";
 export * from "./storage";
 export * from "./transactions";
