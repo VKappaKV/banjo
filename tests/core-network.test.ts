@@ -2,16 +2,20 @@ import { Algodv2, Indexer, Kmd, type Indexer as IndexerClient } from "algosdk";
 import { describe, expect, it } from "vitest";
 import type { Network } from "../src/lib/core";
 import {
+  addCustomNetworkFromDapp,
   createAlgodClient,
   createIndexerClient,
   createKmdClient,
   getAuthorizedAccounts,
   NetworkClientError,
   selectNetworkClientConfig,
+  validateAddNetworkRequest,
   validateCustomNetworkList,
   validateDappAddNetwork,
   validateNetworkConfig,
 } from "../src/lib/core/network";
+import { walletSettingKeys } from "../src/lib/core/state";
+import { MockWalletStorage } from "../src/lib/core/testing/mock-storage";
 
 const network: Network = {
   name: "UnitNet",
@@ -85,6 +89,42 @@ describe("network client helpers", () => {
       valid: false,
       errors: [`Network genesisID ${network.genesisID} is already configured`],
     });
+    expect(validateAddNetworkRequest(network, [])).toBe(network);
+    expect(() => validateAddNetworkRequest(network, [network])).toThrow(
+      `Network genesisID ${network.genesisID} is already configured`,
+    );
+  });
+
+  it("persists approved dApp add-network requests as custom networks", async () => {
+    const storage = new MockWalletStorage();
+    const storedNetwork = { ...network, name: "StoredNet", genesisID: "stored-v1" };
+    const newNetwork = { ...network, name: "NewNet", genesisID: "new-v1" };
+
+    await storage.setAppValue(walletSettingKeys.customNetworks, [storedNetwork]);
+
+    await expect(addCustomNetworkFromDapp(storage, newNetwork, [network])).resolves.toEqual([
+      storedNetwork,
+      newNetwork,
+    ]);
+    await expect(storage.getAppValue(walletSettingKeys.customNetworks)).resolves.toEqual([
+      storedNetwork,
+      newNetwork,
+    ]);
+  });
+
+  it("rejects dApp add-network persistence when genesis ID is already configured", async () => {
+    const storage = new MockWalletStorage();
+    const storedNetwork = { ...network, name: "StoredNet", genesisID: "stored-v1" };
+
+    await storage.setAppValue(walletSettingKeys.customNetworks, [storedNetwork]);
+
+    await expect(addCustomNetworkFromDapp(storage, network, [network])).rejects.toThrow(
+      `Network genesisID ${network.genesisID} is already configured`,
+    );
+    await expect(addCustomNetworkFromDapp(storage, storedNetwork)).rejects.toThrow(
+      "Network genesisID stored-v1 is already configured",
+    );
+    await expect(storage.getAppValue(walletSettingKeys.customNetworks)).resolves.toEqual([storedNetwork]);
   });
 
   it("looks up accounts authorized to a signer through indexer", async () => {

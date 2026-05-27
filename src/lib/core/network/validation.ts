@@ -1,4 +1,6 @@
 import type { Network, NetworkClient } from "../types";
+import type { WalletStorage } from "../storage";
+import { setCustomNetworks, walletSettingKeys } from "../state/settings";
 
 export interface NetworkValidationResult {
 	valid: boolean;
@@ -141,4 +143,31 @@ export function validateDappAddNetwork(value: unknown, knownGenesisIds: string[]
 	}
 
 	return result;
+}
+
+export function validateAddNetworkRequest(value: unknown, existingNetworks: Network[]): Network {
+	const result = validateDappAddNetwork(
+		value,
+		existingNetworks.map((network) => network.genesisID),
+	);
+
+	if (!result.valid || !result.network) {
+		throw new Error(result.errors.join("; ") || "Network add request is invalid");
+	}
+
+	return result.network;
+}
+
+export async function addCustomNetworkFromDapp(
+	storage: WalletStorage,
+	network: unknown,
+	knownNetworks: Network[] = [],
+): Promise<Network[]> {
+	const customNetworks = (await storage.getAppValue<Network[]>(walletSettingKeys.customNetworks)) ?? [];
+	const validatedNetwork = validateAddNetworkRequest(network, [...knownNetworks, ...customNetworks]);
+	const nextNetworks = [...customNetworks, validatedNetwork];
+
+	await setCustomNetworks(storage, nextNetworks);
+
+	return nextNetworks;
 }

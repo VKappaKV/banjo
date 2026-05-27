@@ -15,6 +15,8 @@ export {
 } from "./clients";
 export type { NetworkService } from "./clients";
 export {
+	addCustomNetworkFromDapp,
+	validateAddNetworkRequest,
 	validateCustomNetworkList,
 	validateDappAddNetwork,
 	validateNetworkConfig,
