@@ -21,14 +21,6 @@ interface BanjoDb extends DBSchema {
 		key: number;
 		value: modelsv2.Asset;
 	};
-	"assets-voi mainnet": {
-		key: number;
-		value: modelsv2.Asset;
-	};
-	"assets-voi testnet": {
-		key: number;
-		value: modelsv2.Asset;
-	};
 	keys: {
 		key: string;
 		value: CryptoKey;
@@ -52,8 +44,6 @@ function createDatabase(databaseName: string): Promise<IDBPDatabase<BanjoDb>> {
 			database.createObjectStore("assets-betanet");
 			database.createObjectStore("assets-mainnet");
 			database.createObjectStore("assets-testnet");
-			database.createObjectStore("assets-voi mainnet");
-			database.createObjectStore("assets-voi testnet");
 			database.createObjectStore("keys");
 			database.createObjectStore("seeds", { keyPath: "id", autoIncrement: true });
 		},
