@@ -9,6 +9,7 @@ export interface AccountHD extends modelsv2.Account {
 export interface BanjoAccount {
 	addr: Address;
 	name?: string;
+	hot?: boolean;
 	slot?: number;
 	appId?: bigint;
 	network?: string;
