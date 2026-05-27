@@ -2,6 +2,7 @@
 // integration APIs here; keep internal helpers imported from explicit modules.
 export * from "./adapters";
 export * from "./accounts";
+export * from "./apps";
 export * from "./keys";
 export * from "./network";
 export * from "./assets";
