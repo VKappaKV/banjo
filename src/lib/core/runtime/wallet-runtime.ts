@@ -1,4 +1,4 @@
-export type WalletNotificationColor = "info" | "success" | "error";
+export type WalletNotificationColor = "info" | "success" | "warning" | "error";
 
 export interface WalletRuntime {
 	notify(message: string, color?: WalletNotificationColor, timeout?: number): void;

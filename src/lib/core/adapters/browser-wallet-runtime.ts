@@ -4,6 +4,7 @@ export interface BrowserWalletRuntimeOptions {
 	onNotify?: WalletRuntime["notify"];
 	onOverlay?: WalletRuntime["setOverlay"];
 	onLoading?: WalletRuntime["setLoading"];
+	onConfirm?: WalletRuntime["confirm"];
 	onSendMessage?: WalletRuntime["sendMessage"];
 }
 
@@ -22,7 +23,7 @@ export function createBrowserWalletRuntime(options: BrowserWalletRuntimeOptions 
 			console.debug("[Banjo Debug]", label, value);
 		},
 		confirm(message) {
-			return globalThis.confirm(message);
+			return options.onConfirm?.(message) ?? globalThis.confirm(message);
 		},
 		closeWindow() {
 			globalThis.close();
