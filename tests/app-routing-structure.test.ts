@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { routePathForExtensionAction, walletViewDefinitions } from "../src/lib/app/views";
+import { routePathForExtensionAction, sidebarViewDefinitions, walletViewDefinitions } from "../src/lib/app/views";
 import { routes } from "../src/lib/app/routes";
 
 describe("app routing structure", () => {
@@ -10,6 +10,16 @@ describe("app routing structure", () => {
 
 		expect(routes).toHaveProperty("/");
 		expect(routes).toHaveProperty("*");
+	});
+
+	it("keeps request-driven routes out of direct sidebar navigation", () => {
+		expect(sidebarViewDefinitions.map((view) => view.value)).toEqual([
+			"accounts",
+			"send",
+			"network-add",
+			"swap",
+			"settings",
+		]);
 	});
 
 	it("maps extension side-panel actions to SPA routes", () => {

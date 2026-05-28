@@ -33,6 +33,18 @@ export const walletViewDefinitions: WalletViewDefinition[] = [
 	{ value: "multisig", path: "/multisig", label: "Multisig", description: "ARC-55 account workflows" },
 ];
 
+const hiddenSidebarViews = new Set<WalletView>([
+	"add-account",
+	"account-detail",
+	"sign",
+	"connect",
+	"multisig",
+]);
+
+export const sidebarViewDefinitions = walletViewDefinitions.filter(
+	(definition) => !hiddenSidebarViews.has(definition.value)
+);
+
 export function getWalletViewDefinition(view: WalletView): WalletViewDefinition {
 	return walletViewDefinitions.find((definition) => definition.value === view) ?? walletViewDefinitions[0]!;
 }
@@ -40,7 +52,14 @@ export function getWalletViewDefinition(view: WalletView): WalletViewDefinition 
 export function getWalletViewDefinitionByPath(path: string): WalletViewDefinition {
 	const normalizedPath = path === "/" ? "/accounts" : path;
 
-	return walletViewDefinitions.find((definition) => definition.path === normalizedPath) ?? walletViewDefinitions[0]!;
+	return walletViewDefinitions.find((definition) => {
+		if (!definition.path.includes(":")) {
+			return definition.path === normalizedPath;
+		}
+
+		const prefix = definition.path.slice(0, definition.path.indexOf("/:"));
+		return normalizedPath === prefix || normalizedPath.startsWith(`${prefix}/`);
+	}) ?? walletViewDefinitions[0]!;
 }
 
 export function routePathForExtensionAction(action: string | null): string | undefined {

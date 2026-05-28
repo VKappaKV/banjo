@@ -4,14 +4,21 @@
 	import { Button } from "$lib/components/ui/button";
 	import * as Select from "$lib/components/ui/select";
 	import { getWalletAppContext } from "$lib/app/context";
+	import { useSwitchNetworkMutation } from "$lib/app/queries/wallet-queries.svelte";
 	import { getWalletViewDefinitionByPath } from "$lib/app/views";
 
 	const app = getWalletAppContext();
+	const switchNetworkMutation = useSwitchNetworkMutation(app);
 	let activeView = $derived(getWalletViewDefinitionByPath(router.location));
 
-	function onNetworkChange(value: string | string[] | undefined): void {
+	async function onNetworkChange(value: string | string[] | undefined): Promise<void> {
 		if (typeof value === "string") {
-			void app.switchNetwork(value);
+			try {
+				await switchNetworkMutation.mutateAsync(value);
+				app.notify(`Switched to ${value}`, "success");
+			} catch (error) {
+				app.notify(error instanceof Error ? error.message : "Failed to switch network", "error");
+			}
 		}
 	}
 </script>

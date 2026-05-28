@@ -4,7 +4,7 @@
 	import { Button } from "$lib/components/ui/button";
 	import { Separator } from "$lib/components/ui/separator";
 	import { getWalletAppContext } from "$lib/app/context";
-	import { walletViewDefinitions } from "$lib/app/views";
+	import { sidebarViewDefinitions } from "$lib/app/views";
 
 	const app = getWalletAppContext();
 
@@ -29,7 +29,7 @@
 	<Separator class="my-4" />
 
 	<nav class="grid grid-cols-2 gap-2 lg:grid-cols-1" aria-label="Wallet sections">
-		{#each walletViewDefinitions as item (item.value)}
+		{#each sidebarViewDefinitions as item (item.value)}
 			<Button
 				href={`#${item.path}`}
 				variant={isActive(item.path) ? "default" : "ghost"}

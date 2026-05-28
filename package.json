@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
+    "smoke:localnet": "node scripts/localnet-smoke-checklist.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -47,6 +48,7 @@
     "@noble/curves": "^2.2.0",
     "@noble/hashes": "^2.2.0",
     "@scure/bip39": "^2.2.0",
+    "@tanstack/svelte-query": "^6.1.33",
     "algosdk": "^3.5.2",
     "bn.js": "^5.2.3",
     "buffer": "^6.0.3",

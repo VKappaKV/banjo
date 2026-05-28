@@ -85,4 +85,21 @@ describe("refreshWalletData", () => {
 
 		expect(result.namespaceRecords).toEqual({});
 	});
+
+	it("keeps account refresh successful when optional reverse lookup fails", async () => {
+		const result = await refreshWalletData({
+			state: state({
+				accounts: [{ addr: "A" }, { addr: "B" }],
+				namespaceRecords: { A: { name: "cached.algo" } },
+			}),
+			algod: createAlgod({ A: {}, B: {} }),
+			getAuthorizedAccounts: async () => [],
+			reverseLookup: async () => {
+				throw new Error("no NFD found for address");
+			},
+		});
+
+		expect(result.accountInfo.map((account) => account.address)).toEqual(["A", "B"]);
+		expect(result.namespaceRecords).toEqual({ A: { name: "cached.algo" } });
+	});
 });

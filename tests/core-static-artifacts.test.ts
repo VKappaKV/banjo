@@ -32,8 +32,8 @@ describe("core static artifacts", () => {
 		const testnet = byName.get("TestNet");
 		const localnet = byName.get("LocalNet");
 
-		expect(mainnet?.algod.url).toBe("https://mainnet-api.4160.nodely.io");
-		expect(mainnet?.indexer?.url).toBe("https://mainnet-idx.4160.nodely.io");
+		expect(mainnet?.algod.url).toBe("https://mainnet-api.4160.nodely.dev");
+		expect(mainnet?.indexer?.url).toBe("https://mainnet-idx.4160.nodely.dev");
 		expect(mainnet?.fallback?.algod.url).toBe("https://mainnet-api.algonode.network");
 		expect(mainnet?.nfdUrl).toBe("https://api.nf.domains");
 		expect(mainnet?.inboxRouter).toBe(2449590623);

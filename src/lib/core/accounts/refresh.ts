@@ -80,7 +80,20 @@ export async function refreshWalletData({
 	}
 
 	const addresses = accountInfo.map((account) => account.address);
-	const namespaceRecords = reverseLookup && addresses.length > 0 ? await reverseLookup(addresses) : {};
+	let namespaceRecords: NsObject = {};
+
+	if (reverseLookup && addresses.length > 0) {
+		try {
+			namespaceRecords = await reverseLookup(addresses);
+		} catch {
+			// NFD reverse lookup is optional metadata; missing names must not block account refresh.
+			namespaceRecords = Object.fromEntries(
+				addresses
+					.map((address) => [address, state.namespaceRecords[address]] as const)
+					.filter(([, record]) => !!record)
+			);
+		}
+	}
 
 	return { accountInfo, namespaceRecords };
 }

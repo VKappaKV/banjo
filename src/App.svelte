@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount } from "svelte";
+	import { QueryClientProvider } from "@tanstack/svelte-query";
 	import Router, { replace } from "svelte-spa-router";
+	import { queryClient } from "$lib/app/query-client";
 	import { routes } from "$lib/app/routes";
 	import { setWalletAppContext } from "$lib/app/context";
 	import { WalletAppState } from "$lib/app/wallet-app-state.svelte";
@@ -40,12 +42,14 @@
 	<ConfirmDialog />
 	<InternalSigningModal />
 
-	<div class="mx-auto grid min-h-screen w-full max-w-7xl grid-cols-1 lg:grid-cols-[18rem_1fr]">
-		<ShellSidebar />
+	<QueryClientProvider client={queryClient}>
+		<div class="mx-auto grid min-h-screen w-full max-w-7xl grid-cols-1 lg:grid-cols-[18rem_1fr]">
+			<ShellSidebar />
 
-		<main class="min-w-0 p-4 sm:p-6 lg:p-8">
-			<AppHeader />
-			<Router {routes} />
-		</main>
-	</div>
+			<main class="min-w-0 p-4 sm:p-6 lg:p-8">
+				<AppHeader />
+				<Router {routes} />
+			</main>
+		</div>
+	</QueryClientProvider>
 </div>

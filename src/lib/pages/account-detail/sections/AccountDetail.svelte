@@ -5,7 +5,10 @@
 	import { Button } from "$lib/components/ui/button";
 	import * as Card from "$lib/components/ui/card";
 	import { Separator } from "$lib/components/ui/separator";
+	import { accountKind, assetHoldingId, explorerAccountUrl, formatMicroAlgos } from "$lib/app/portfolio";
+	import { accountAssets, useAccountQuery, useRemoveAccountMutation } from "$lib/app/queries/wallet-queries.svelte";
 	import { getWalletAppContext } from "$lib/app/context";
+	import AssetHoldingRow from "./AssetHoldingRow.svelte";
 
 	interface Props {
 		addr: string;
@@ -14,25 +17,14 @@
 	let { addr }: Props = $props();
 
 	const app = getWalletAppContext();
+	const accountQuery = useAccountQuery(app, () => addr);
+	const removeAccountMutation = useRemoveAccountMutation(app);
 
-	let account = $derived(app.accounts.find((a) => a.addr === addr) ?? null);
+	let account = $derived(accountQuery.data ?? app.accounts.find((a) => a.addr === addr) ?? null);
 	let title = $derived(account?.ns?.name ?? account?.title ?? "Unknown account");
-	let balance = $derived.by(() => {
-		if (!account?.info?.amount) return "—";
-		const microAlgos = typeof account.info.amount === "bigint" ? account.info.amount : BigInt(Number(account.info.amount));
-		const whole = microAlgos / 1_000_000n;
-		const fraction = (microAlgos % 1_000_000n).toString().padStart(6, "0").replace(/0+$/, "");
-		return `${whole.toString()}${fraction ? `.${fraction}` : ""} ALGO`;
-	});
-
-	function accountKind(acct: NonNullable<typeof account>): string {
-		if (acct.subType === "rekey") return "Rekeyed";
-		if (acct.subType === "hd") return "HD child";
-		if (acct.appId) return "ARC-55 multisig";
-		if (acct.isHot) return "Hot";
-		if (acct.canSign) return "Signer";
-		return "Watch";
-	}
+	let balance = $derived(account ? formatMicroAlgos(account.info?.amount) : "—");
+	let assetHoldings = $derived(accountAssets(account));
+	let explorerUrl = $derived(account ? explorerAccountUrl(app.selectedNetwork, account.addr) : undefined);
 
 	function accountKindVariant(acct: NonNullable<typeof account>): "default" | "secondary" | "outline" | "destructive" {
 		return acct.canSign ? "default" : "secondary";
@@ -55,27 +47,76 @@
 		);
 		if (!confirmed) return;
 
-		const filtered = app.state.accounts.filter((a) => a.addr !== addr);
-		if (app.core) {
-			await app.core.storage.setAccounts(filtered);
+		try {
+			await removeAccountMutation.mutateAsync({ address: addr });
+			app.notify(`Removed ${title}`, "info");
+			push("/accounts");
+		} catch (error) {
+			app.notify(error instanceof Error ? error.message : "Failed to remove account", "error");
 		}
-		app.state.accounts = filtered;
-		app.notify(`Removed ${title}`, "info");
-		push("/accounts");
 	}
 </script>
 
 <div class="grid gap-6">
-	{#if !account}
+	{#if accountQuery.isError}
+		<Alert.Root variant="destructive">
+			<Alert.Title>Refresh failed</Alert.Title>
+			<Alert.Description>{accountQuery.error.message}</Alert.Description>
+		</Alert.Root>
+		<Button variant="outline" onclick={() => accountQuery.refetch()}>Retry</Button>
+	{:else if accountQuery.isLoading && !account}
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>Loading account</Card.Title>
+				<Card.Description>Refreshing account balances, assets, and name metadata.</Card.Description>
+			</Card.Header>
+			<Card.Content class="grid gap-3">
+				<div class="bg-muted h-6 w-48 animate-pulse rounded"></div>
+				<div class="bg-muted h-4 w-full max-w-xl animate-pulse rounded"></div>
+				<div class="bg-muted h-20 w-full animate-pulse rounded"></div>
+			</Card.Content>
+		</Card.Root>
+	{:else if !account}
 		<Alert.Root variant="destructive">
 			<Alert.Title>Account not found</Alert.Title>
 			<Alert.Description>No account with address {addr} was found in the wallet.</Alert.Description>
 		</Alert.Root>
 		<Button variant="outline" onclick={() => push("/accounts")}>Back to Accounts</Button>
 	{:else}
-		<div class="flex items-center gap-3">
-			<Button variant="ghost" size="sm" onclick={() => push("/accounts")}>← Back</Button>
-			<h2 class="text-2xl font-semibold tracking-tight">Account Details</h2>
+		<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+			<div class="flex items-center gap-3">
+				<Button variant="ghost" size="sm" onclick={() => push("/accounts")}>← Back</Button>
+				<h2 class="text-2xl font-semibold tracking-tight">Account Details</h2>
+			</div>
+			<div class="flex flex-wrap gap-2">
+				<Button variant="outline" size="sm" onclick={() => accountQuery.refetch()} disabled={accountQuery.isFetching}>
+					{accountQuery.isFetching ? "Refreshing" : "Refresh"}
+				</Button>
+				{#if explorerUrl}
+					<Button href={explorerUrl} target="_blank" rel="noreferrer" variant="outline" size="sm">Explorer</Button>
+				{/if}
+			</div>
+		</div>
+
+		<div class="grid gap-3 sm:grid-cols-3">
+			<Card.Root>
+				<Card.Header>
+					<Card.Description>Native balance</Card.Description>
+					<Card.Title>{balance}</Card.Title>
+				</Card.Header>
+			</Card.Root>
+			<Card.Root>
+				<Card.Header>
+					<Card.Description>ASA holdings</Card.Description>
+					<Card.Title>{assetHoldings.length}</Card.Title>
+				</Card.Header>
+			</Card.Root>
+			<Card.Root>
+				<Card.Header>
+					<Card.Description>Signability</Card.Description>
+					<Card.Title>{account.canSign ? "Can sign" : "Watch only"}</Card.Title>
+				</Card.Header>
+			</Card.Root>
 		</div>
 
 		<Card.Root>
@@ -188,6 +229,48 @@
 							{/if}
 						</div>
 					</div>
+				{/if}
+			</Card.Content>
+		</Card.Root>
+
+		{#if account.appId}
+			<Card.Root>
+				<Card.Header>
+					<Card.Title>ARC-55 Multisig</Card.Title>
+					<Card.Description>Smart-contract-backed multisig account summary.</Card.Description>
+				</Card.Header>
+				<Card.Content class="grid gap-2 text-sm">
+					<div class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+						<span class="text-muted-foreground">App ID</span>
+						<span>{account.appId.toString()}</span>
+						<span class="text-muted-foreground">Address</span>
+						<span class="break-all">{account.addr}</span>
+						<span class="text-muted-foreground">Signability</span>
+						<span>{account.canSign ? "Local signer available" : "Watch only"}</span>
+						{#if account.network}
+							<span class="text-muted-foreground">Network</span>
+							<span>{account.network}</span>
+						{/if}
+					</div>
+					<p class="text-muted-foreground text-xs">
+						Full ARC-55 management actions are planned for the multisig management milestone.
+					</p>
+				</Card.Content>
+			</Card.Root>
+		{/if}
+
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>Assets</Card.Title>
+				<Card.Description>ASA holdings with cached metadata and resolved media URLs.</Card.Description>
+			</Card.Header>
+			<Card.Content class="grid gap-3">
+				{#if assetHoldings.length === 0}
+					<p class="text-sm text-muted-foreground">No ASA holdings found for this account.</p>
+				{:else}
+					{#each assetHoldings as holding (assetHoldingId(holding).toString())}
+						<AssetHoldingRow {holding} />
+					{/each}
 				{/if}
 			</Card.Content>
 		</Card.Root>
