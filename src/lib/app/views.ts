@@ -1,6 +1,7 @@
 export const walletViews = [
 	"accounts",
 	"add-account",
+	"account-detail",
 	"send",
 	"sign",
 	"connect",
@@ -21,7 +22,8 @@ export interface WalletViewDefinition {
 
 export const walletViewDefinitions: WalletViewDefinition[] = [
 	{ value: "accounts", path: "/accounts", label: "Accounts", description: "Balances and refreshed wallet accounts" },
-	{ value: "add-account", path: "/add-account", label: "Add Account", description: "Onboarding flows start in Milestone 11" },
+	{ value: "add-account", path: "/add-account", label: "Add Account", description: "Import or create new accounts" },
+	{ value: "account-detail", path: "/account-detail/:addr", label: "Account Detail", description: "View account details, balance, assets, and signers" },
 	{ value: "send", path: "/send", label: "Send", description: "Payment and asset send flows" },
 	{ value: "sign", path: "/sign", label: "Sign", description: "Transaction review and signing" },
 	{ value: "connect", path: "/connect", label: "Connect", description: "dApp account connection approval" },

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { push } from "svelte-spa-router";
 	import * as Alert from "$lib/components/ui/alert";
 	import { Badge } from "$lib/components/ui/badge";
 	import { Button } from "$lib/components/ui/button";
@@ -24,6 +25,24 @@
 		if (account.isHot) return "Hot";
 		if (account.canSign) return "Signer";
 		return "Watch";
+	}
+
+	function goToDetail(addr: string) {
+		push(`/account-detail/${addr}`);
+	}
+
+	async function removeAccount(account: AccountInfo) {
+		const confirmed = await app.requestConfirmation(
+			`Remove account ${account.title} (${account.addr.slice(0, 8)}...)? This only removes wallet metadata; on-chain data is unaffected.`
+		);
+		if (!confirmed) return;
+
+		const filtered = app.state.accounts.filter((a) => a.addr !== account.addr);
+		if (app.core) {
+			await app.core.storage.setAccounts(filtered);
+		}
+		app.state.accounts = filtered;
+		app.notify(`Removed ${account.title}`, "info");
 	}
 </script>
 
@@ -55,7 +74,7 @@
 			<Card.Header>
 				<Card.Title>No accounts yet</Card.Title>
 				<Card.Description>
-					Banjo core is initialized. Account onboarding screens arrive in Milestone 11.
+					Add your first account to get started.
 				</Card.Description>
 			</Card.Header>
 			<Card.Content>
@@ -67,30 +86,41 @@
 				</div>
 			</Card.Content>
 			<Card.Footer>
-				<Button href="#/add-account">Go to Add Account</Button>
+				<Button href="#/add-account">Add Account</Button>
 			</Card.Footer>
 		</Card.Root>
 	{:else}
 		<div class="grid gap-3">
 			{#each app.accounts as account (account.addr)}
 				<Card.Root>
-					<Card.Header>
-						<div class="flex items-start justify-between gap-3">
-							<div class="min-w-0">
-								<Card.Title class="truncate text-base">{account.ns?.name ?? account.title}</Card.Title>
-								<Card.Description class="break-all">{account.addr}</Card.Description>
+					<button type="button" class="w-full text-left" onclick={() => goToDetail(account.addr)}>
+						<Card.Header>
+							<div class="flex items-start justify-between gap-3">
+								<div class="min-w-0">
+									<Card.Title class="truncate text-base">{account.ns?.name ?? account.title}</Card.Title>
+									<Card.Description class="break-all">{account.addr}</Card.Description>
+								</div>
+								<Badge variant={account.canSign ? "default" : "secondary"}>{accountKind(account)}</Badge>
 							</div>
-							<Badge variant={account.canSign ? "default" : "secondary"}>{accountKind(account)}</Badge>
-						</div>
-					</Card.Header>
-					<Card.Content>
-						<div class="flex flex-wrap gap-2 text-sm">
-							<Badge variant="outline">{formatAlgo(account)}</Badge>
-							{#if account.info?.authAddr}
-								<Badge variant="secondary">Rekeyed</Badge>
-							{/if}
-						</div>
-					</Card.Content>
+						</Card.Header>
+						<Card.Content>
+							<div class="flex flex-wrap gap-2 text-sm">
+								<Badge variant="outline">{formatAlgo(account)}</Badge>
+								{#if account.info?.authAddr}
+									<Badge variant="secondary">Rekeyed</Badge>
+								{/if}
+								{#if account.subType === "hd"}
+									<Badge variant="outline">Slot {account.slot}</Badge>
+								{/if}
+								{#if account.falcon}
+									<Badge variant="outline">Falcon</Badge>
+								{/if}
+							</div>
+						</Card.Content>
+					</button>
+					<Card.Footer class="border-t pt-3">
+						<Button variant="destructive" size="sm" onclick={() => removeAccount(account)}>Remove</Button>
+					</Card.Footer>
 				</Card.Root>
 			{/each}
 		</div>

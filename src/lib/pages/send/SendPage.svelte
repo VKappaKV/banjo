@@ -1,5 +1,5 @@
 <script lang="ts">
-	import SendIntro from "./section/SendIntro.svelte";
+	import SendIntro from "./sections/SendIntro.svelte";
 </script>
 
 <SendIntro />

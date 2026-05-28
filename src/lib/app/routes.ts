@@ -11,6 +11,7 @@ export const routes: RouteDefinition = {
 	"/network-add": wrap({ asyncComponent: () => import("$lib/pages/network-add/NetworkAddPage.svelte") }),
 	"/swap": wrap({ asyncComponent: () => import("$lib/pages/swap/SwapPage.svelte") }),
 	"/settings": wrap({ asyncComponent: () => import("$lib/pages/settings/SettingsPage.svelte") }),
+	"/account-detail/:addr": wrap({ asyncComponent: () => import("$lib/pages/account-detail/AccountDetailPage.svelte") }),
 	"/multisig": wrap({ asyncComponent: () => import("$lib/pages/multisig/MultisigPage.svelte") }),
 	"*": wrap({ asyncComponent: () => import("$lib/pages/accounts/AccountsPage.svelte") }),
 };
