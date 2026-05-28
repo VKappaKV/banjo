@@ -5,6 +5,7 @@ export * from "./accounts";
 export * from "./apps";
 export * from "./keys";
 export * from "./network";
+export * from "./protocol";
 export * from "./assets";
 export * from "./runtime";
 export * from "./signing";
