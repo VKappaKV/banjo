@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Banjo Wallet",
+  "description": "Banjo Algorand wallet shell and dApp bridge.",
+  "version": "0.0.0",
+  "action": {
+    "default_title": "Banjo"
+  },
+  "side_panel": {
+    "default_path": "index.html"
+  },
+  "background": {
+    "service_worker": "assets/background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["assets/content-script.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/page-client.js", "assets/*.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "permissions": ["declarativeNetRequest", "sidePanel", "scripting", "tabs"],
+  "host_permissions": ["<all_urls>"]
+}
