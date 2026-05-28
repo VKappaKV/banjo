@@ -8,20 +8,15 @@
     },
     "vibekit-mcp": {
       "type": "local",
-      "command": [
-        "C:\\Users\\Jacopo\\.vibekit\\bin\\vibekit.exe",
-        "mcp"
-      ],
+      "command": ["C:\\Users\\Jacopo\\.vibekit\\bin\\vibekit.exe", "mcp"],
       "environment": {},
       "enabled": true
     },
     "svelte": {
       "type": "local",
-      "command": [
-        "npx",
-        "-y",
-        "@sveltejs/mcp"
-      ]
+      "command": ["cmd", "/c", "npx", "-y", "@sveltejs/mcp"],
+      "environment": {},
+      "enabled": true
     }
   }
 }

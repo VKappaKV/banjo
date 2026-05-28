@@ -52,6 +52,7 @@
     "buffer": "^6.0.3",
     "falcon-1024": "^0.1.3",
     "idb": "^8.0.3",
-    "ledger-algorand-js": "^0.0.1"
+    "ledger-algorand-js": "^0.0.1",
+    "svelte-spa-router": "^5.1.0"
   }
 }

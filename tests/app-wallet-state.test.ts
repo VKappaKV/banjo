@@ -30,12 +30,12 @@ describe("wallet app state", () => {
 		expect(app.state.networkName).toBe(builtInNetworks[0]?.name);
 	});
 
-	it("keeps route state separate from wallet state", () => {
+	it("keeps UI notifications separate from wallet state", () => {
 		const app = new WalletAppState({ core: createTestCore() });
 
-		app.setView("settings");
+		app.notify("Hello", "info", 0);
 
-		expect(app.view).toBe("settings");
+		expect(app.notifications).toHaveLength(1);
 		expect(app.state.accounts).toEqual([]);
 	});
 

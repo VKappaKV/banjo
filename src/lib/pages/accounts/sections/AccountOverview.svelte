@@ -4,13 +4,9 @@
 	import { Button } from "$lib/components/ui/button";
 	import * as Card from "$lib/components/ui/card";
 	import type { AccountInfo } from "$core/types";
-	import type { WalletAppState } from "$lib/app/wallet-app-state.svelte";
+	import { getWalletAppContext } from "$lib/app/context";
 
-	interface Props {
-		app: WalletAppState;
-	}
-
-	let { app }: Props = $props();
+	const app = getWalletAppContext();
 
 	function formatAlgo(account: AccountInfo): string {
 		const amount = account.info?.amount;
@@ -71,7 +67,7 @@
 				</div>
 			</Card.Content>
 			<Card.Footer>
-				<Button onclick={() => app.setView("add-account")}>Go to Add Account</Button>
+				<Button href="#/add-account">Go to Add Account</Button>
 			</Card.Footer>
 		</Card.Root>
 	{:else}

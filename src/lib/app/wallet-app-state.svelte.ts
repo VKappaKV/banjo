@@ -17,7 +17,6 @@ import {
 } from "$core/state";
 import { builtInNetworks } from "$core/data/networks";
 import { createWalletCore, type WalletCoreCallbacks, type WalletCoreServices } from "./wallet-core";
-import type { WalletView } from "./views";
 
 export interface AppNotification {
 	id: number;
@@ -38,12 +37,10 @@ export interface InternalSigningRequest {
 export interface WalletAppStateOptions {
 	core?: WalletCoreServices;
 	createCore?: (callbacks: WalletCoreCallbacks) => WalletCoreServices;
-	initialView?: WalletView;
 }
 
 export class WalletAppState {
 	state = $state.raw<WalletState>(createInitialWalletState());
-	view = $state<WalletView>("accounts");
 	initialized = $state(false);
 	initializing = $state(false);
 	startupError = $state<string | undefined>();
@@ -59,9 +56,7 @@ export class WalletAppState {
 	private confirmResolver?: (confirmed: boolean) => void;
 	private signingResolver?: (signed: WalletSignedTransaction[]) => void;
 
-	constructor(private readonly options: WalletAppStateOptions = {}) {
-		this.view = options.initialView ?? "accounts";
-	}
+	constructor(private readonly options: WalletAppStateOptions = {}) {}
 
 	get allNetworks() {
 		return selectAllNetworks(builtInNetworks, this.state.customNetworks);
@@ -168,10 +163,6 @@ export class WalletAppState {
 		if (this.state.accounts.length) {
 			await this.refreshWallet();
 		}
-	};
-
-	setView = (view: WalletView): void => {
-		this.view = view;
 	};
 
 	notify = (message: string, color: AppNotification["color"] = "info", timeout = 4000): void => {

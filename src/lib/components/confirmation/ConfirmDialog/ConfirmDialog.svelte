@@ -1,13 +1,9 @@
 <script lang="ts">
 	import * as Dialog from "$lib/components/ui/dialog";
 	import { Button } from "$lib/components/ui/button";
-	import type { WalletAppState } from "$lib/app/wallet-app-state.svelte";
+	import { getWalletAppContext } from "$lib/app/context";
 
-	interface Props {
-		app: WalletAppState;
-	}
-
-	let { app }: Props = $props();
+	const app = getWalletAppContext();
 </script>
 
 <Dialog.Root open={!!app.confirmation}>

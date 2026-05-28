@@ -1,13 +1,10 @@
 <script lang="ts">
 	import * as Alert from "$lib/components/ui/alert";
 	import { Button } from "$lib/components/ui/button";
-	import type { AppNotification, WalletAppState } from "$lib/app/wallet-app-state.svelte";
+	import { getWalletAppContext } from "$lib/app/context";
+	import type { AppNotification } from "$lib/app/wallet-app-state.svelte";
 
-	interface Props {
-		app: WalletAppState;
-	}
-
-	let { app }: Props = $props();
+	const app = getWalletAppContext();
 
 	function variant(notification: AppNotification) {
 		return notification.color === "error" ? "destructive" : "default";
