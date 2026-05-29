@@ -41,6 +41,8 @@ export class SwapPageState {
 	error = $state("");
 	result = $state("");
 	accepting = $state(false);
+	onAccepted: (() => Promise<void>) | undefined;
+	onRejected: (() => Promise<void>) | undefined;
 
 	constructor(readonly app: WalletAppState) {}
 
@@ -92,6 +94,12 @@ export class SwapPageState {
 
 	setSenderAssetId = (value: string | string[] | undefined): void => {
 		if (typeof value === "string") this.senderAssetId = value;
+	};
+
+	loadAcceptanceRequest = (tx1: string, tx2: string): void => {
+		this.mode = "accept";
+		this.acceptTx1 = tx1;
+		this.acceptTx2 = tx2;
 	};
 
 	private async suggestedParams(algod: ReturnType<typeof createAlgodClient>): Promise<SuggestedParams> {
@@ -189,6 +197,7 @@ export class SwapPageState {
 			});
 			await queryClient.invalidateQueries({ queryKey: queryKeys.accounts(this.app.state.networkName) });
 			this.result = "Swap accepted and submitted.";
+			await this.onAccepted?.();
 		} catch (err) {
 			this.error = err instanceof Error ? err.message : "Failed to accept swap.";
 		} finally {

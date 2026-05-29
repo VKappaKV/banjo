@@ -138,7 +138,7 @@
 					<textarea
 						id="addresses"
 						bind:value={addressesText}
-						class="min-h-[120px] w-full rounded border border-input bg-background p-3 font-mono text-sm"
+						class="min-h-30 w-full rounded border border-input bg-background p-3 font-mono text-sm"
 						placeholder="Address 1&#10;Address 2&#10;Address 3"
 					></textarea>
 				</div>

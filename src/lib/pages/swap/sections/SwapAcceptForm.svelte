@@ -18,5 +18,10 @@
 		<input type="password" bind:value={state.password} class="rounded border border-input bg-background p-2 text-sm" placeholder="Signing password if required" />
 		<SwapFeedbackAlerts />
 	</Card.Content>
-	<Card.Footer><Button onclick={state.acceptProposal} disabled={state.accepting}>{state.accepting ? "Submitting" : "Accept & Submit"}</Button></Card.Footer>
+	<Card.Footer class="flex flex-wrap gap-2">
+		<Button onclick={state.acceptProposal} disabled={state.accepting}>{state.accepting ? "Submitting" : "Accept & Submit"}</Button>
+		{#if state.onRejected}
+			<Button variant="outline" onclick={state.onRejected}>Reject</Button>
+		{/if}
+	</Card.Footer>
 </Card.Root>
