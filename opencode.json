@@ -14,9 +14,11 @@
     },
     "svelte": {
       "type": "local",
-      "command": ["cmd", "/c", "npx", "-y", "@sveltejs/mcp"],
-      "environment": {},
-      "enabled": true
+      "command": [
+        "npx",
+        "-y",
+        "@sveltejs/mcp"
+      ]
     }
   }
 }

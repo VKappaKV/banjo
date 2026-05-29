@@ -116,5 +116,11 @@ export function createIndexedDbWalletStorage(
 
 			await putAssetStore(storeName, asset);
 		},
+		async clearAllAssets(): Promise<void> {
+			const d = await db();
+			await d.clear("assets-betanet");
+			await d.clear("assets-mainnet");
+			await d.clear("assets-testnet");
+		},
 	};
 }

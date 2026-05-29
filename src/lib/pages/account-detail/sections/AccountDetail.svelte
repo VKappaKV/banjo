@@ -265,7 +265,9 @@
 						<span class="text-muted-foreground">Network</span><span>{account.network}</span>
 					{/if}
 				</div>
-				<p class="text-muted-foreground text-xs">Full ARC-55 management actions are planned for the multisig management milestone.</p>
+				<Button variant="outline" size="sm" class="w-fit" onclick={() => push(`/multisig/${account.appId!.toString()}`)}>
+					Manage Multisig
+				</Button>
 			</Card.Content>
 		</Card.Root>
 	{/if}

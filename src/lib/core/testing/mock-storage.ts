@@ -59,4 +59,8 @@ export class MockWalletStorage implements WalletStorage {
 	async putAsset(networkName: string, asset: modelsv2.Asset): Promise<void> {
 		this.assets.set(`${networkName}:${Number(asset.index)}`, asset);
 	}
+
+	async clearAllAssets(): Promise<void> {
+		this.assets.clear();
+	}
 }
