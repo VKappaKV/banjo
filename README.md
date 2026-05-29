@@ -20,6 +20,18 @@ Banjo is a Svelte wallet application being built around a framework-neutral wall
 - Browser globals and extension APIs should be isolated behind adapters.
 - Generated clients and cryptographic utilities should be copied or regenerated artifacts, not hand-rewritten code.
 
+## Page And Section Structure
+
+- Route-level `*Page.svelte` files own page composition, layout order, and step or mode orchestration.
+- A page should not be a thin wrapper around a single `*Intro.svelte` component.
+- Use `sections/*.svelte` for focused page sections such as headers, forms, review panels, status cards, and repeated cards.
+- Avoid `Intro` as a catch-all section name. Only use it for static introductory copy with no orchestration responsibility.
+- When sibling sections share state, create a page-scoped state/context file such as `send-page-state.svelte.ts` and let sections consume that explicit state container.
+- Prefer separate section components when a block has its own interaction surface, is reused, or would make a page/section visually large.
+- Prefer local snippets only for one-off markup decomposition inside a section that does not need independent state or lifecycle.
+- Keep visual derivations such as variants, classes, and labels in `$derived` values or typed state getters rather than inline template conditionals.
+- Public section props must use explicit TypeScript interfaces and avoid `any`.
+
 ## Runtime Targets
 
 Banjo v1 targets these runtime modes from the start:

@@ -1,5 +1,7 @@
 <script lang="ts">
-	import AddAccountIntro from "./sections/AddAccountIntro.svelte";
+	import type { Component } from "svelte";
+	import AddAccountHeader from "./sections/AddAccountHeader.svelte";
+	import AccountTypeGrid from "./sections/AccountTypeGrid.svelte";
 	import HotImport from "./sections/HotImport.svelte";
 	import HotCreate from "./sections/HotCreate.svelte";
 	import Bip39Import from "./sections/Bip39Import.svelte";
@@ -12,34 +14,38 @@
 	import WatchAdd from "./sections/WatchAdd.svelte";
 	import MsigCreate from "./sections/MsigCreate.svelte";
 	import MsigImport from "./sections/MsigImport.svelte";
+	import type { AddAccountFlow } from "./flows";
 
-	let activeFlow: string | undefined = $state();
+	type AddAccountFlowComponent = Component<{ onback: () => void }>;
+
+	const flowComponents = {
+		"hot-import": HotImport,
+		"hot-create": HotCreate,
+		"bip39-import": Bip39Import,
+		"bip39-create": Bip39Create,
+		passkey: PasskeyFlow,
+		hd: HdDiscovery,
+		ledger: LedgerDiscovery,
+		falcon: FalconAdd,
+		kmd: KmdImport,
+		watch: WatchAdd,
+		"msig-create": MsigCreate,
+		"msig-import": MsigImport,
+	} satisfies Record<AddAccountFlow, AddAccountFlowComponent>;
+
+	let activeFlow: AddAccountFlow | undefined = $state();
+	let ActiveFlow = $derived(activeFlow ? flowComponents[activeFlow] : undefined);
+
+	function resetFlow() {
+		activeFlow = undefined;
+	}
 </script>
 
 {#if !activeFlow}
-	<AddAccountIntro onselect={(flow) => (activeFlow = flow)} />
-{:else if activeFlow === "hot-import"}
-	<HotImport onback={() => (activeFlow = undefined)} />
-{:else if activeFlow === "hot-create"}
-	<HotCreate onback={() => (activeFlow = undefined)} />
-{:else if activeFlow === "bip39-import"}
-	<Bip39Import onback={() => (activeFlow = undefined)} />
-{:else if activeFlow === "bip39-create"}
-	<Bip39Create onback={() => (activeFlow = undefined)} />
-{:else if activeFlow === "passkey"}
-	<PasskeyFlow onback={() => (activeFlow = undefined)} />
-{:else if activeFlow === "hd"}
-	<HdDiscovery onback={() => (activeFlow = undefined)} />
-{:else if activeFlow === "ledger"}
-	<LedgerDiscovery onback={() => (activeFlow = undefined)} />
-{:else if activeFlow === "falcon"}
-	<FalconAdd onback={() => (activeFlow = undefined)} />
-{:else if activeFlow === "kmd"}
-	<KmdImport onback={() => (activeFlow = undefined)} />
-{:else if activeFlow === "watch"}
-	<WatchAdd onback={() => (activeFlow = undefined)} />
-{:else if activeFlow === "msig-create"}
-	<MsigCreate onback={() => (activeFlow = undefined)} />
-{:else if activeFlow === "msig-import"}
-	<MsigImport onback={() => (activeFlow = undefined)} />
+	<div class="grid gap-6">
+		<AddAccountHeader />
+		<AccountTypeGrid onselect={(flow) => (activeFlow = flow)} />
+	</div>
+{:else if ActiveFlow}
+	<ActiveFlow onback={resetFlow} />
 {/if}

@@ -1,5 +1,8 @@
 <script lang="ts">
-	import SignIntro from "./sections/SignIntro.svelte";
+	import RoutePlaceholder from "$lib/components/page/RoutePlaceholder/RoutePlaceholder.svelte";
+	import { getWalletViewDefinition } from "$lib/app/views";
+
+	const page = getWalletViewDefinition("sign");
 </script>
 
-<SignIntro />
+<RoutePlaceholder title={page.label} description={page.description} />

@@ -7,12 +7,21 @@
 	import { sidebarViewDefinitions } from "$lib/app/views";
 
 	const app = getWalletAppContext();
+	type SidebarVariant = "default" | "ghost";
+	type SidebarItem = (typeof sidebarViewDefinitions)[number] & { variant: SidebarVariant };
 
 	function isActive(path: string): boolean {
 		const location = router.location === "/" ? "/accounts" : router.location;
 
 		return location === path;
 	}
+
+	let sidebarItems = $derived<SidebarItem[]>(
+		sidebarViewDefinitions.map((item) => ({
+			...item,
+			variant: isActive(item.path) ? "default" : "ghost",
+		}))
+	);
 </script>
 
 <aside class="border-border bg-sidebar text-sidebar-foreground border-b p-4 lg:border-r lg:border-b-0">
@@ -29,10 +38,10 @@
 	<Separator class="my-4" />
 
 	<nav class="grid grid-cols-2 gap-2 lg:grid-cols-1" aria-label="Wallet sections">
-		{#each sidebarViewDefinitions as item (item.value)}
+		{#each sidebarItems as item (item.value)}
 			<Button
 				href={`#${item.path}`}
-				variant={isActive(item.path) ? "default" : "ghost"}
+				variant={item.variant}
 				class="justify-start"
 			>
 				{item.label}

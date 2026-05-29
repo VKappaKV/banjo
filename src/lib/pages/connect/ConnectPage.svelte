@@ -1,5 +1,8 @@
 <script lang="ts">
-	import ConnectIntro from "./sections/ConnectIntro.svelte";
+	import RoutePlaceholder from "$lib/components/page/RoutePlaceholder/RoutePlaceholder.svelte";
+	import { getWalletViewDefinition } from "$lib/app/views";
+
+	const page = getWalletViewDefinition("connect");
 </script>
 
-<ConnectIntro />
+<RoutePlaceholder title={page.label} description={page.description} />

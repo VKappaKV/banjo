@@ -1,17 +1,18 @@
 <script lang="ts">
-	import { push } from "svelte-spa-router";
 	import * as Alert from "$lib/components/ui/alert";
 	import { Badge } from "$lib/components/ui/badge";
 	import { Button } from "$lib/components/ui/button";
 	import * as Card from "$lib/components/ui/card";
 	import type { AccountInfo } from "$core/types";
-	import { accountKind, calculatePortfolioSummary, explorerAccountUrl, formatMicroAlgos } from "$lib/app/portfolio";
+	import { calculatePortfolioSummary, explorerAccountUrl, formatMicroAlgos } from "$lib/app/portfolio";
 	import { useAccountsQuery, useRemoveAccountMutation } from "$lib/app/queries/wallet-queries.svelte";
 	import { getWalletAppContext } from "$lib/app/context";
+	import AccountCard from "./AccountCard.svelte";
 
 	const app = getWalletAppContext();
 	const accountsQuery = useAccountsQuery(app);
 	const removeAccountMutation = useRemoveAccountMutation(app);
+	type BadgeVariant = "default" | "secondary";
 
 	let accounts = $derived(accountsQuery.data ?? app.accounts);
 	let summary = $derived(calculatePortfolioSummary(accounts));
@@ -19,14 +20,7 @@
 		accountsQuery.dataUpdatedAt > 0 ? new Date(accountsQuery.dataUpdatedAt).toLocaleTimeString() : "Never"
 	);
 	let explorerUrl = $derived.by(() => (address: string) => explorerAccountUrl(app.selectedNetwork, address));
-
-	function formatAlgo(account: AccountInfo): string {
-		return formatMicroAlgos(account.info?.amount);
-	}
-
-	function goToDetail(addr: string) {
-		push(`/account-detail/${addr}`);
-	}
+	let hotWalletVariant = $derived<BadgeVariant>(app.state.hotWalletEnabled ? "default" : "secondary");
 
 	async function removeAccount(account: AccountInfo) {
 		const confirmed = await app.requestConfirmation(
@@ -147,7 +141,7 @@
 			<Card.Content>
 				<div class="flex flex-wrap gap-2">
 					<Badge variant="secondary">{app.allNetworks.length} networks</Badge>
-					<Badge variant={app.state.hotWalletEnabled ? "default" : "secondary"}>
+					<Badge variant={hotWalletVariant}>
 						Hot wallet {app.state.hotWalletEnabled ? "available" : "unavailable"}
 					</Badge>
 				</div>
@@ -159,53 +153,7 @@
 	{:else}
 		<div class="grid gap-3">
 			{#each accounts as account (account.addr)}
-				<Card.Root>
-					<button type="button" class="w-full text-left" onclick={() => goToDetail(account.addr)}>
-						<Card.Header>
-							<div class="flex items-start justify-between gap-3">
-								<div class="min-w-0">
-									<Card.Title class="truncate text-base">{account.ns?.name ?? account.title}</Card.Title>
-									<Card.Description class="break-all">{account.addr}</Card.Description>
-								</div>
-								<Badge variant={account.canSign ? "default" : "secondary"}>{accountKind(account)}</Badge>
-							</div>
-						</Card.Header>
-						<Card.Content>
-							<div class="flex flex-wrap gap-2 text-sm">
-								<Badge variant="outline">{formatAlgo(account)}</Badge>
-								{#if account.info?.authAddr}
-									<Badge variant="secondary">Rekeyed</Badge>
-								{/if}
-								{#if account.subType === "hd"}
-									<Badge variant="outline">Slot {account.slot}</Badge>
-								{/if}
-								{#if account.falcon}
-									<Badge variant="outline">Falcon</Badge>
-								{/if}
-								{#if account.info?.assets?.length}
-									<Badge variant="outline">{account.info.assets.length} ASA</Badge>
-								{/if}
-								{#if account.ns}
-									<Badge variant="secondary">NFD</Badge>
-								{/if}
-							</div>
-						</Card.Content>
-					</button>
-					<Card.Footer class="flex flex-wrap gap-2 border-t pt-3">
-						<Button href={`#/account-detail/${account.addr}`} variant="outline" size="sm" title="View account details">
-							Details
-						</Button>
-						<Button href="#/send" variant="outline" size="sm" title="Send from this account">
-							Send
-						</Button>
-						{#if explorerUrl(account.addr)}
-							<Button href={explorerUrl(account.addr)} target="_blank" rel="noreferrer" variant="outline" size="sm">
-								Explorer
-							</Button>
-						{/if}
-						<Button variant="destructive" size="sm" onclick={() => removeAccount(account)}>Remove</Button>
-					</Card.Footer>
-				</Card.Root>
+				<AccountCard {account} explorerUrl={explorerUrl(account.addr)} onremove={removeAccount} />
 			{/each}
 		</div>
 	{/if}
