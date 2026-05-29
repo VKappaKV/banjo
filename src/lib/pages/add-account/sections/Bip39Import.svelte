@@ -56,7 +56,7 @@
 		<Card.Content class="grid gap-3">
 			<textarea
 				bind:value={mnemonic}
-				class="min-h-[100px] w-full rounded border border-input bg-background p-3 font-mono text-sm"
+				class="min-h-25 w-full rounded border border-input bg-background p-3 font-mono text-sm"
 				placeholder="Paste 24-word BIP39 seed phrase..."
 			></textarea>
 

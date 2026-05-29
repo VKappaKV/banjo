@@ -1,5 +1,8 @@
 <script lang="ts">
-	import MultisigIntro from "./sections/MultisigIntro.svelte";
+	import RoutePlaceholder from "$lib/components/page/RoutePlaceholder/RoutePlaceholder.svelte";
+	import { getWalletViewDefinition } from "$lib/app/views";
+
+	const page = getWalletViewDefinition("multisig");
 </script>
 
-<MultisigIntro />
+<RoutePlaceholder title={page.label} description={page.description} />

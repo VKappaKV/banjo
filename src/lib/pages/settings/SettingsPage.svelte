@@ -1,5 +1,8 @@
 <script lang="ts">
-	import SettingsIntro from "./sections/SettingsIntro.svelte";
+	import RoutePlaceholder from "$lib/components/page/RoutePlaceholder/RoutePlaceholder.svelte";
+	import { getWalletViewDefinition } from "$lib/app/views";
+
+	const page = getWalletViewDefinition("settings");
 </script>
 
-<SettingsIntro />
+<RoutePlaceholder title={page.label} description={page.description} />
