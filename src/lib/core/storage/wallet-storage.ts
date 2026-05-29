@@ -14,4 +14,5 @@ export interface WalletStorage {
 	listHotKeyAddresses(): Promise<string[]>;
 	getAsset(networkName: string, assetId: number): Promise<modelsv2.Asset | undefined>;
 	putAsset(networkName: string, asset: modelsv2.Asset): Promise<void>;
+	clearAllAssets(): Promise<void>;
 }
