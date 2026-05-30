@@ -28,18 +28,21 @@
       return;
     }
 
-    try {
-      const result = await importAndStoreBip39Seed({
+	try {
+		app.core.logger.info({ namespace: "onboarding", event: "bip39-import-started" });
+		const result = await importAndStoreBip39Seed({
         mnemonic: trimmed,
         passphrase,
         storage: app.core.storage,
         cryptoProvider: app.core.cryptoProvider,
-      });
-      seedId = result.seedId;
-    } catch (e) {
-      error = e instanceof Error ? e.message : "Import failed.";
-    }
-  }
+		});
+		seedId = result.seedId;
+		app.core.logger.info({ namespace: "onboarding", event: "bip39-import-completed", fields: { seedId: result.seedId } });
+	} catch (e) {
+		error = e instanceof Error ? e.message : "Import failed.";
+		app.core.logger.error({ namespace: "onboarding", event: "bip39-import-failed", error: e });
+	}
+}
 </script>
 
 <div class="grid gap-4">

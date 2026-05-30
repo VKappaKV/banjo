@@ -1,3 +1,5 @@
+export { createBrowserLogger } from "./browser-logger";
+export type { BrowserLoggerOptions } from "./browser-logger";
 export { BrowserCryptoProvider } from "./browser-crypto-provider";
 export { BrowserCredentialProvider } from "./browser-credential-provider";
 export { browserFetchJson } from "./browser-fetch-json";

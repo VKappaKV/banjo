@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import { routePathForExtensionAction, sidebarViewDefinitions, walletViewDefinitions } from "../src/lib/app/views";
 import { routes } from "../src/lib/app/routes";
@@ -19,6 +20,7 @@ describe("app routing structure", () => {
 			"network-add",
 			"swap",
 			"settings",
+			"workspace",
 		]);
 	});
 

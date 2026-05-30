@@ -1,6 +1,7 @@
 import type { WalletSignedTransaction } from "$core/signing";
 import type { WalletState } from "$core/state";
 import type { WalletTransaction } from "$core/types";
+import { createLogCorrelationId, type BanjoLogEvent } from "$core/logging";
 import {
 	createAlgodClient,
 	createIndexerClient,
@@ -74,10 +75,15 @@ export class WalletAppState {
 		return this.loadingCount > 0 || this.initializing;
 	}
 
+	get logEntries(): BanjoLogEvent[] {
+		return this.core?.logger.entries() ?? [];
+	}
+
 	initialize = async (): Promise<void> => {
 		if (this.initialized || this.initializing) {
 			return;
 		}
+		const correlationId = createLogCorrelationId("init");
 
 		this.initializing = true;
 		this.startupError = undefined;
@@ -87,15 +93,24 @@ export class WalletAppState {
 				onNotify: this.notify,
 				onLoading: this.setLoading,
 				onConfirm: this.requestConfirmation,
+				isDebugEnabled: () => this.state.debug,
 				requestWalletTransactionApproval: this.requestWalletTransactionApproval,
 			});
+			this.core.logger?.info({ namespace: "app", event: "initialize-started", correlationId });
 			this.state = await loadWalletState({
 				storage: this.core.storage,
 				cryptoProvider: this.core.cryptoProvider,
 			});
+			this.core.logger?.info({
+				namespace: "app",
+				event: "initialize-completed",
+				correlationId,
+				fields: { accounts: this.state.accounts.length, network: this.state.networkName },
+			});
 			this.initialized = true;
 		} catch (error) {
 			this.startupError = error instanceof Error ? error.message : "Failed to load wallet state";
+			this.core?.logger?.error({ namespace: "app", event: "initialize-failed", correlationId, error });
 			this.notify(this.startupError, "error");
 		} finally {
 			this.initializing = false;
@@ -112,10 +127,17 @@ export class WalletAppState {
 		}
 
 		this.setLoading(1);
+		const correlationId = createLogCorrelationId("refresh");
 
 		try {
 			const state = this.state;
 			const network = selectNetwork(state, builtInNetworks);
+			this.core.logger?.info({
+				namespace: "wallet",
+				event: "refresh-started",
+				correlationId,
+				fields: { accounts: state.accounts.length, network: network.name },
+			});
 			const algod = createAlgodClient(network, state.fallbackEnabled);
 			const indexer = createIndexerClient(network, state.fallbackEnabled);
 			const result = await refreshWalletData({
@@ -132,8 +154,15 @@ export class WalletAppState {
 				hotKeyAddresses: await this.core.storage.listHotKeyAddresses(),
 				namespaceRecords: result.namespaceRecords,
 			};
+			this.core.logger?.info({
+				namespace: "wallet",
+				event: "refresh-completed",
+				correlationId,
+				fields: { accountInfo: result.accountInfo.length, namespaceRecords: Object.keys(result.namespaceRecords).length },
+			});
 			this.notify("Wallet refreshed", "success");
 		} catch (error) {
+			this.core.logger?.error({ namespace: "wallet", event: "refresh-failed", correlationId, error });
 			this.notify(error instanceof Error ? error.message : "Failed to refresh wallet", "error");
 		} finally {
 			this.setLoading(-1);
@@ -159,6 +188,7 @@ export class WalletAppState {
 			accountInfo: [],
 			namespaceRecords: {},
 		};
+		this.core.logger?.info({ namespace: "settings", event: "network-switched", fields: { network: networkName } });
 		this.notify(`Switched to ${networkName}`, "success");
 
 		if (this.state.accounts.length) {
@@ -183,7 +213,15 @@ export class WalletAppState {
 		this.loadingCount = Math.max(0, this.loadingCount + delta);
 	};
 
+	exportLogs = (): string => this.core?.logger.export() ?? "[]";
+
+	clearLogs = (): void => {
+		this.core?.logger.clear();
+		this.notify("Diagnostic logs cleared", "info");
+	};
+
 	requestConfirmation = (message: string): Promise<boolean> => {
+		this.core?.logger.info({ namespace: "ui", event: "confirmation-requested" });
 		this.confirmation = { id: ++this.confirmationId, message };
 
 		return new Promise((resolve) => {
@@ -198,6 +236,11 @@ export class WalletAppState {
 	};
 
 	requestWalletTransactionApproval = (walletTxns: WalletTransaction[]): Promise<WalletSignedTransaction[]> => {
+		this.core?.logger.info({
+			namespace: "signing",
+			event: "approval-requested",
+			fields: { transactionCount: walletTxns.length },
+		});
 		this.signingRequest = { id: ++this.signingRequestId, walletTxns };
 
 		return new Promise((resolve) => {
@@ -208,6 +251,11 @@ export class WalletAppState {
 	resolveSigningRequest = (approved: boolean): void => {
 		const count = this.signingRequest?.walletTxns.length ?? 0;
 		const signed = approved ? new Array<WalletSignedTransaction>(count).fill(null) : [];
+		this.core?.logger.info({
+			namespace: "signing",
+			event: approved ? "approval-accepted" : "approval-rejected",
+			fields: { transactionCount: count },
+		});
 
 		this.signingResolver?.(signed);
 		this.signingResolver = undefined;

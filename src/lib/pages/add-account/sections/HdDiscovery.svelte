@@ -66,24 +66,28 @@
       return;
     }
 
-    try {
-      seedBuffer = await decryptStoredSeed({
+	try {
+		app.core.logger.info({ namespace: "onboarding", event: "hd-seed-decrypt-started" });
+		seedBuffer = await decryptStoredSeed({
         passphrase,
         seedData,
         cryptoProvider: app.core.cryptoProvider,
-      });
-      step = "discovering";
-      await discover(0);
-    } catch (e) {
-      error = e instanceof Error ? e.message : "Incorrect passphrase.";
-    }
-  }
+		});
+		app.core.logger.info({ namespace: "onboarding", event: "hd-seed-decrypt-completed" });
+		step = "discovering";
+		await discover(0);
+	} catch (e) {
+		error = e instanceof Error ? e.message : "Incorrect passphrase.";
+		app.core.logger.error({ namespace: "onboarding", event: "hd-seed-decrypt-failed", error: e });
+	}
+}
 
   async function discover(offset: number) {
     if (!seedBuffer || !app.core) return;
     error = "";
-    try {
-      const network = selectNetwork(app.state, builtInNetworks);
+	try {
+		app.core.logger.info({ namespace: "onboarding", event: "hd-discovery-started", fields: { offset } });
+		const network = selectNetwork(app.state, builtInNetworks);
       const algod = createAlgodClient(network, app.state.fallbackEnabled);
       const indexer = createIndexerClient(network, app.state.fallbackEnabled);
 
@@ -94,19 +98,22 @@
         algod,
         indexer,
       });
-      candidates = result;
-      startIndex = offset;
+		candidates = result;
+		app.core.logger.info({ namespace: "onboarding", event: "hd-discovery-completed", fields: { offset, candidateCount: result.length } });
+		startIndex = offset;
       step = "select-accounts";
-    } catch (e) {
-      error = e instanceof Error ? e.message : "Discovery failed.";
-    }
-  }
+	} catch (e) {
+		error = e instanceof Error ? e.message : "Discovery failed.";
+		app.core.logger.error({ namespace: "onboarding", event: "hd-discovery-failed", error: e, fields: { offset } });
+	}
+}
 
   async function handleAdd() {
     if (!seedBuffer || !app.core) return;
     error = "";
-    try {
-      const selected = candidates.filter((c) =>
+	try {
+		app.core.logger.info({ namespace: "onboarding", event: "hd-add-started", fields: { selectedCount: selectedAddresses.size } });
+		const selected = candidates.filter((c) =>
         selectedAddresses.has(c.address),
       );
       if (selected.length === 0) {
@@ -121,13 +128,15 @@
         state: app.state,
         storage: app.core.storage,
       });
-      addedCount = added.length;
-      step = "done";
+		addedCount = added.length;
+		app.core.logger.info({ namespace: "onboarding", event: "hd-add-completed", fields: { addedCount: added.length } });
+		step = "done";
       await app.refreshWallet();
-    } catch (e) {
-      error = e instanceof Error ? e.message : "Failed to add accounts.";
-    }
-  }
+	} catch (e) {
+		error = e instanceof Error ? e.message : "Failed to add accounts.";
+		app.core.logger.error({ namespace: "onboarding", event: "hd-add-failed", error: e });
+	}
+}
 </script>
 
 <div class="grid gap-4">

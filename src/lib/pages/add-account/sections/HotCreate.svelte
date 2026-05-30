@@ -25,8 +25,9 @@
   let savedAddr = $state("");
   let revealWords = $state(false);
 
-  function startGenerate() {
-    preview = createHotAccountPreview();
+	function startGenerate() {
+		app.core?.logger.info({ namespace: "onboarding", event: "hot-create-started" });
+		preview = createHotAccountPreview();
     challengeIndex = Math.floor(Math.random() * 25);
     step = "mnemonic";
   }
@@ -53,20 +54,23 @@
   async function saveAccount() {
     if (!preview || !app.core) return;
     saveError = "";
-    try {
-      const account = await saveHotAccount({
+	try {
+		app.core.logger.info({ namespace: "onboarding", event: "hot-save-started" });
+		const account = await saveHotAccount({
         account: preview.account,
         state: app.state,
         storage: app.core.storage,
         cryptoProvider: app.core.cryptoProvider,
       });
-      savedAddr = account.addr;
-      step = "done";
+		savedAddr = account.addr;
+		app.core.logger.info({ namespace: "onboarding", event: "hot-save-completed", fields: { address: account.addr } });
+		step = "done";
       await app.refreshWallet();
-    } catch (e) {
-      saveError = e instanceof Error ? e.message : "Failed to save account.";
-    }
-  }
+	} catch (e) {
+		saveError = e instanceof Error ? e.message : "Failed to save account.";
+		app.core.logger.error({ namespace: "onboarding", event: "hot-save-failed", error: e });
+	}
+}
 </script>
 
 <div class="grid gap-4">
@@ -102,7 +106,7 @@
         {#if preview}
           {@const words = preview.mnemonicWords}
           <div class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-            {#each words as word, i}
+			{#each words as word, i (`${i}-${word}`)}
               <span class="text-muted-foreground text-right">{i + 1}.</span>
               <span class="font-mono">{word}</span>
             {/each}

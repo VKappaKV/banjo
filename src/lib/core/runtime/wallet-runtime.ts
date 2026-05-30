@@ -1,9 +1,12 @@
+import type { BanjoLogger } from "$core/logging";
+
 export type WalletNotificationColor = "info" | "success" | "warning" | "error";
 
 export interface WalletRuntime {
 	notify(message: string, color?: WalletNotificationColor, timeout?: number): void;
 	setOverlay?(value: boolean): void;
 	setLoading?(delta: number): void;
+	logger?: BanjoLogger;
 	logDebug?(label: string, value: unknown): void;
 	confirm?(message: string): Promise<boolean> | boolean;
 	closeWindow?(): void;

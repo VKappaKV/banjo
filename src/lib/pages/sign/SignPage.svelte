@@ -79,7 +79,7 @@
       </Card.Content>
       <Card.Footer class="flex flex-wrap gap-2">
         <Button onclick={state.approve}>Approve & Sign</Button>
-        <Button variant="outline" onclick={state.request.reject}>Reject</Button>
+		<Button variant="outline" onclick={state.reject}>Reject</Button>
       </Card.Footer>
     </Card.Root>
   {:else if state.preparedData}
@@ -120,7 +120,7 @@
       </Card.Content>
       <Card.Footer class="flex flex-wrap gap-2">
         <Button onclick={state.approve}>Approve & Sign</Button>
-        <Button variant="outline" onclick={state.request.reject}>Reject</Button>
+		<Button variant="outline" onclick={state.reject}>Reject</Button>
       </Card.Footer>
     </Card.Root>
   {:else}

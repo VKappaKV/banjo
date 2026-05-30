@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { WalletCoreServices } from "../src/lib/app/wallet-core";
 import { WalletAppState } from "../src/lib/app/wallet-app-state.svelte";
 import { builtInNetworks } from "../src/lib/core/data/networks";
+import { noopLogger } from "../src/lib/core/logging";
 import type { CredentialProvider, CryptoProvider, FetchJson, LedgerProvider, WalletRuntime } from "../src/lib/core/runtime";
 import { walletSettingKeys } from "../src/lib/core/state";
 import { MockWalletStorage } from "../src/lib/core/testing/mock-storage";
@@ -14,6 +15,7 @@ function createTestCore(storage = new MockWalletStorage()): WalletCoreServices {
 		credentialProvider: {} as CredentialProvider,
 		ledgerProvider: { listLedgerDevices: async () => [] } satisfies LedgerProvider,
 		fetchJson: (async () => ({})) as FetchJson,
+		logger: noopLogger,
 	};
 }
 

@@ -26,6 +26,7 @@ import {
 import type { BanjoMsig, WalletTransaction } from "$core/types";
 import type { WalletAppState } from "$lib/app/wallet-app-state.svelte";
 import { DappRequestState } from "$lib/app/dapp-request-state.svelte";
+import { createLogCorrelationId } from "$core/logging";
 
 function isWalletTransactionArray(value: unknown): value is WalletTransaction[] {
 	return Array.isArray(value) && value.every((item) => !!item && typeof item === "object" && typeof (item as WalletTransaction).txn === "string");
@@ -98,11 +99,14 @@ export class SignPageState {
 	load = async (): Promise<void> => {
 		this.preparing = true;
 		this.error = "";
+		const correlationId = createLogCorrelationId("dapp-sign-load");
+		this.app.core?.logger.info({ namespace: "dapp", event: "request-load-started", correlationId, fields: { route: "sign" } });
 		await this.app.initialize();
 		await this.request.load();
 
 		try {
 			if (this.request.request?.action === "sign") {
+				this.app.core?.logger.info({ namespace: "dapp", event: "sign-request-preparing", correlationId });
 				if (!isWalletTransactionArray(this.request.request.txns)) throw new Error("Sign request has invalid transactions.");
 				this.preparedSign = prepareSignTransactionsProtocolRequest({
 					walletTransactions: this.request.request.txns,
@@ -110,7 +114,14 @@ export class SignPageState {
 				});
 				await this.loadAssetLabels();
 				await this.detectArc55Mode();
+				this.app.core?.logger.info({
+					namespace: "dapp",
+					event: "sign-request-prepared",
+					correlationId,
+					fields: { network: this.preparedSign.networkName, transactionCount: this.preparedSign.transactions.length, hasArc55: !!this.msig },
+				});
 			} else if (this.request.request?.action === "data") {
+				this.app.core?.logger.info({ namespace: "dapp", event: "sign-data-request-preparing", correlationId });
 				if (typeof this.request.request.data !== "string") throw new Error("Sign-data request has invalid data.");
 				if (!this.request.request.metadata || typeof this.request.request.metadata !== "object") throw new Error("Sign-data request has invalid metadata.");
 
@@ -122,9 +133,16 @@ export class SignPageState {
 						authenticatorData: authenticatorData(this.request.request.authenticatorData),
 					},
 				});
+				this.app.core?.logger.info({
+					namespace: "dapp",
+					event: "sign-data-request-prepared",
+					correlationId,
+					fields: { domain: this.preparedData.request.siwa.domain },
+				});
 			}
 		} catch (error) {
 			this.error = error instanceof Error ? error.message : "Failed to prepare signing request.";
+			this.app.core?.logger.warn({ namespace: "dapp", event: "request-prepare-failed", correlationId, error });
 		} finally {
 			this.preparing = false;
 		}
@@ -162,6 +180,11 @@ export class SignPageState {
 			if (!mode) continue;
 
 			this.msig = mode;
+			this.app.core?.logger.info({
+				namespace: "arc55",
+				event: "signing-mode-detected",
+				fields: { appId: arc55Account.appId?.toString(), bypass: mode.bypass === true },
+			});
 			break;
 		}
 	}
@@ -207,6 +230,13 @@ export class SignPageState {
 
 	approve = async (): Promise<void> => {
 		this.error = "";
+		const correlationId = createLogCorrelationId("dapp-sign-approve");
+		this.app.core?.logger.info({
+			namespace: "dapp",
+			event: "request-approval-started",
+			correlationId,
+			fields: { action: this.request.request?.action, needsPassword: this.needsPassword, arc55StoredGroup: this.isStoredGroupMode },
+		});
 		try {
 			if (this.needsPassword && !this.password) throw new Error("Password is required.");
 
@@ -221,6 +251,7 @@ export class SignPageState {
 					context: this.buildSigningContext(),
 				});
 				await this.request.respond(response);
+				this.app.core?.logger.info({ namespace: "dapp", event: "sign-request-approved", correlationId, fields: { transactionCount: this.preparedSign.transactions.length } });
 				return;
 			}
 
@@ -235,17 +266,26 @@ export class SignPageState {
 					cryptoProvider: this.app.core!.cryptoProvider,
 				});
 				await this.request.respond(response);
+				this.app.core?.logger.info({ namespace: "dapp", event: "sign-data-request-approved", correlationId });
 				return;
 			}
 
 			throw new Error("No signing request is ready.");
 		} catch (error) {
 			this.error = error instanceof Error ? error.message : "Failed to approve signing request.";
+			this.app.core?.logger.error({ namespace: "dapp", event: "request-approval-failed", correlationId, error, fields: { action: this.request.request?.action } });
 		}
+	};
+
+	reject = async (): Promise<void> => {
+		this.app.core?.logger.info({ namespace: "dapp", event: "request-rejected", fields: { action: this.request.request?.action } });
+		await this.request.reject();
 	};
 
 	private async approveStoredGroup(msig: BanjoMsig): Promise<void> {
 		if (!this.preparedSign) throw new Error("No signing request is ready.");
+		const correlationId = createLogCorrelationId("arc55-sign");
+		this.app.core?.logger.info({ namespace: "arc55", event: "stored-group-sign-started", correlationId, fields: { appId: msig.app.info.id.toString() } });
 
 		const algod = createAlgodClient(this.preparedSign.network, this.app.state.fallbackEnabled);
 		const ctx = this.buildSigningContext();
@@ -299,5 +339,6 @@ export class SignPageState {
 		const emptyTxns: (Uint8Array | null)[] = this.preparedSign.transactions.map(() => null);
 		this.storedGroupMessage = `Signature contributed to ARC-55 group #${plan.nonce}. The transaction will be submitted when the threshold is met.`;
 		await this.request.respond({ action: "signed", txns: emptyTxns });
+		this.app.core?.logger.info({ namespace: "arc55", event: "stored-group-sign-completed", correlationId, fields: { appId, nonce: plan.nonce.toString(), signatureCount: rawSignatures.length } });
 	}
 }

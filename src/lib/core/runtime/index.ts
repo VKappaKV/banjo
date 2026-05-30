@@ -4,3 +4,4 @@ export type { FetchJson } from "./fetch-json";
 export type { LedgerAccountAddress, LedgerDeviceInfo, LedgerProvider, LedgerTransportKind } from "./ledger-provider";
 export { noopWalletRuntime } from "./wallet-runtime";
 export type { WalletNotificationColor, WalletRuntime } from "./wallet-runtime";
+export type { BanjoLogger, BanjoLogEvent, LogInput, LogLevel } from "$core/logging";

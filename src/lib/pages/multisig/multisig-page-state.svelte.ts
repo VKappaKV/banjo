@@ -14,6 +14,7 @@ import {
 } from "$core/apps";
 import type { Arc55App, MsigGroup } from "$core/types";
 import type { WalletAppState } from "$lib/app/wallet-app-state.svelte";
+import { createLogCorrelationId } from "$core/logging";
 
 export class MultisigPageState {
 	appId = $state<bigint | undefined>();
@@ -109,14 +110,18 @@ export class MultisigPageState {
 		this.arc55App = undefined;
 		this.appId = undefined;
 		this.expandedGroups = {};
+		const correlationId = createLogCorrelationId("arc55-load");
+		this.app.core?.logger.info({ namespace: "arc55", event: "app-load-started", correlationId, fields: { appId: appIdStr } });
 		try {
 			const appId = BigInt(appIdStr);
 			this.appId = appId;
 			const app = await loadArc55App({ appId, algod: this.algodClient });
 			if (!app) throw new Error("ARC-55 app not found on the selected network.");
 			this.arc55App = app;
+			this.app.core?.logger.info({ namespace: "arc55", event: "app-load-completed", correlationId, fields: { appId: appId.toString(), groupCount: app.groups.length, threshold: Number(app.arc55_threshold) } });
 		} catch (err) {
 			this.error = err instanceof Error ? err.message : "Failed to load ARC-55 app.";
+			this.app.core?.logger.error({ namespace: "arc55", event: "app-load-failed", correlationId, error: err, fields: { appId: appIdStr } });
 		} finally {
 			this.loading = false;
 		}
@@ -126,28 +131,35 @@ export class MultisigPageState {
 		if (!this.appId) return;
 		this.error = "";
 		try {
+			this.app.core?.logger.info({ namespace: "arc55", event: "app-refresh-started", fields: { appId: this.appId.toString() } });
 			const app = await loadArc55App({ appId: this.appId, algod: this.algodClient });
 			if (!app) throw new Error("ARC-55 app not found.");
 			this.arc55App = app;
+			this.app.core?.logger.info({ namespace: "arc55", event: "app-refresh-completed", fields: { appId: this.appId.toString(), groupCount: app.groups.length } });
 			this.app.notify("ARC-55 app state refreshed.", "success");
 		} catch (err) {
 			this.error = err instanceof Error ? err.message : "Failed to refresh.";
+			this.app.core?.logger.warn({ namespace: "arc55", event: "app-refresh-failed", error: err, fields: { appId: this.appId.toString() } });
 		}
 	};
 
 	submitGroup = async (nonce: bigint): Promise<void> => {
 		if (!this.arc55App) return;
 		this.error = "";
+		const correlationId = createLogCorrelationId("arc55-submit");
+		this.app.core?.logger.info({ namespace: "arc55", event: "group-submit-started", correlationId, fields: { appId: this.arc55App.info.id.toString(), nonce: nonce.toString() } });
 		try {
-			const result = await submitArc55Group({
+			await submitArc55Group({
 				app: this.arc55App,
 				nonce,
 				algod: this.algodClient,
 			});
+			this.app.core?.logger.info({ namespace: "arc55", event: "group-submit-completed", correlationId, fields: { nonce: nonce.toString() } });
 			this.app.notify(`Group #${nonce} submitted.`, "success");
 			await this.refresh();
 		} catch (err) {
 			this.error = err instanceof Error ? err.message : "Failed to submit group.";
+			this.app.core?.logger.error({ namespace: "arc55", event: "group-submit-failed", correlationId, error: err, fields: { nonce: nonce.toString() } });
 		}
 	};
 
@@ -158,6 +170,7 @@ export class MultisigPageState {
 		);
 		if (!confirmed) return;
 		this.error = "";
+		this.app.core?.logger.info({ namespace: "arc55", event: "signatures-clear-started", fields: { appId: this.appId.toString(), nonce: nonce.toString() } });
 		try {
 			await clearArc55Signatures({
 				appId: this.appId,
@@ -167,10 +180,12 @@ export class MultisigPageState {
 				algod: this.algodClient,
 				signer: this.createSigner(),
 			});
+			this.app.core?.logger.info({ namespace: "arc55", event: "signatures-cleared", fields: { appId: this.appId.toString(), nonce: nonce.toString() } });
 			this.app.notify(`Signatures cleared for group #${nonce}.`, "success");
 			await this.refresh();
 		} catch (err) {
 			this.error = err instanceof Error ? err.message : "Failed to clear signatures.";
+			this.app.core?.logger.error({ namespace: "arc55", event: "signatures-clear-failed", error: err, fields: { appId: this.appId.toString(), nonce: nonce.toString() } });
 		}
 	};
 
@@ -181,6 +196,7 @@ export class MultisigPageState {
 		);
 		if (!confirmed) return;
 		this.error = "";
+		this.app.core?.logger.info({ namespace: "arc55", event: "group-delete-started", fields: { appId: this.appId.toString(), nonce: nonce.toString() } });
 		try {
 			const group = this.arc55App.groups.find((g) => g.nonce === nonce);
 			if (!group) throw new Error("Group not found.");
@@ -191,10 +207,12 @@ export class MultisigPageState {
 				algod: this.algodClient,
 				signer: this.createSigner(),
 			});
+			this.app.core?.logger.info({ namespace: "arc55", event: "group-deleted", fields: { appId: this.appId.toString(), nonce: nonce.toString() } });
 			this.app.notify(`Group #${nonce} deleted.`, "success");
 			await this.refresh();
 		} catch (err) {
 			this.error = err instanceof Error ? err.message : "Failed to delete group.";
+			this.app.core?.logger.error({ namespace: "arc55", event: "group-delete-failed", error: err, fields: { appId: this.appId.toString(), nonce: nonce.toString() } });
 		}
 	};
 
@@ -213,16 +231,19 @@ export class MultisigPageState {
 		);
 		if (!confirmed) return;
 		try {
+			this.app.core?.logger.info({ namespace: "arc55", event: "app-destroy-started", fields: { appId: this.arc55App.info.id.toString() } });
 			await destroyArc55App({
 				app: this.arc55App,
 				sender: this.msigMember,
 				algod: this.algodClient,
 				signer: this.createSigner(),
 			});
+			this.app.core?.logger.info({ namespace: "arc55", event: "app-destroyed", fields: { appId: this.arc55App.info.id.toString() } });
 			this.app.notify("ARC-55 app destroyed.", "success");
 			this.arc55App = undefined;
 		} catch (err) {
 			this.error = err instanceof Error ? err.message : "Failed to destroy app.";
+			this.app.core?.logger.error({ namespace: "arc55", event: "app-destroy-failed", error: err });
 		}
 	};
 }

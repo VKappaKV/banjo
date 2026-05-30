@@ -31,10 +31,12 @@
 
 	async function changeNetwork(name: string) {
 		const core = getCore();
+		core.logger.info({ namespace: "settings", event: "network-switch-started", fields: { network: name } });
 		selectedNetwork = name;
 		await setSelectedNetworkName(core.storage, name);
 		app.state = { ...app.state, networkName: name };
 		await app.switchNetwork(name);
+		core.logger.info({ namespace: "settings", event: "network-switch-completed", fields: { network: name } });
 		app.notify(`Switched to ${name}`, "info");
 	}
 
@@ -74,6 +76,7 @@
 			const next = [...customNetworks, result.network];
 			await setCustomNetworks(core.storage, next);
 			app.state = { ...app.state, customNetworks: next };
+			core.logger.info({ namespace: "settings", event: "custom-network-added", fields: { network: result.network.name, genesisID: result.network.genesisID } });
 			app.notify(`Added network ${result.network.name}`, "info");
 			showAddDialog = false;
 		} finally {
@@ -86,6 +89,7 @@
 		const next = customNetworks.filter((n) => n.genesisID !== network.genesisID);
 		await setCustomNetworks(core.storage, next);
 		app.state = { ...app.state, customNetworks: next };
+		core.logger.info({ namespace: "settings", event: "custom-network-removed", fields: { network: network.name, genesisID: network.genesisID } });
 		app.notify(`Removed ${network.name}`, "info");
 		if (app.state.networkName === network.name) {
 			await changeNetwork("MainNet");
@@ -127,6 +131,7 @@
 			next[idx] = result.network;
 			await setCustomNetworks(core.storage, next);
 			app.state = { ...app.state, customNetworks: next };
+			core.logger.info({ namespace: "settings", event: "custom-network-updated", fields: { network: result.network.name, genesisID: result.network.genesisID } });
 			app.notify(`Updated ${result.network.name}`, "info");
 			editNetwork = undefined;
 			showEditDialog = false;
@@ -154,14 +159,14 @@
 				<SelectContent>
 					<SelectGroup>
 						<SelectLabel>Built-in</SelectLabel>
-						{#each builtInNetworks as network}
+						{#each builtInNetworks as network (network.genesisID)}
 							<SelectItem value={network.name}>{network.name}</SelectItem>
 						{/each}
 					</SelectGroup>
 					{#if customNetworks.length > 0}
 						<SelectGroup>
 							<SelectLabel>Custom</SelectLabel>
-							{#each customNetworks as network}
+							{#each customNetworks as network (network.genesisID)}
 								<SelectItem value={network.name}>{network.name}</SelectItem>
 							{/each}
 						</SelectGroup>
@@ -184,7 +189,7 @@
 				<p class="text-muted-foreground text-sm italic">No custom networks added.</p>
 			{:else}
 				<div class="grid gap-2">
-					{#each customNetworks as network}
+					{#each customNetworks as network (network.genesisID)}
 						<div class="bg-muted flex items-center justify-between rounded-lg px-3 py-2">
 							<div class="min-w-0">
 								<div class="truncate font-medium">{network.name}</div>

@@ -85,6 +85,7 @@ export function createBeaconSignalingTransport(
     if (payload.type === "offer" && payload.sdp && options.mode === "listen") {
       const token = deriveBeaconSessionToken(payload.wpk, kp.secretKey, payload.ts);
       sessions.set(peerId, { peerId, remoteAddress: peerId, remoteWpk: payload.wpk, offerTs: payload.ts });
+      options.app.core?.logger.info({ namespace: "workspace", event: "beacon-offer-received", fields: { network: options.network.name } });
       onEvent("message", {
         type: "signal:offer",
         sender: peerId,
@@ -95,6 +96,7 @@ export function createBeaconSignalingTransport(
 
     if (payload.type === "answer" && payload.sdp && options.mode === "offer") {
       sessions.set(peerId, { peerId, remoteAddress: peerId, remoteWpk: payload.wpk, offerTs: payload.ts });
+      options.app.core?.logger.info({ namespace: "workspace", event: "beacon-answer-received", fields: { network: options.network.name } });
       onEvent("message", {
         type: "signal:answer",
         sender: peerId,
@@ -131,6 +133,7 @@ export function createBeaconSignalingTransport(
       useFallback: options.app.state.fallbackEnabled,
     });
     if (!announcement?.wpk) throw new Error("Recipient has not initialized BEACON yet.");
+    options.app.core?.logger.info({ namespace: "workspace", event: "beacon-recipient-announcement-found", fields: { network: options.network.name } });
     const peerId = options.recipientAddress;
     sessions.set(peerId, { peerId, remoteAddress: options.recipientAddress, remoteWpk: announcement.wpk, offerTs: Date.now() });
     onEvent("message", {
@@ -174,6 +177,11 @@ export function createBeaconSignalingTransport(
       payloads: encryptedPayloads,
       password: options.password,
     });
+    options.app.core?.logger.info({
+      namespace: "workspace",
+      event: signal.type === "offer" ? "beacon-offer-sent" : "beacon-answer-sent",
+      fields: { network: options.network.name, fragmentCount: encryptedPayloads.length },
+    });
   }
 
   async function start() {
@@ -181,6 +189,7 @@ export function createBeaconSignalingTransport(
       const kp = await keypair();
       if (closed) return;
       emitOpen();
+      options.app.core?.logger.info({ namespace: "workspace", event: "beacon-transport-opened", fields: { mode: options.mode, network: options.network.name } });
       await poll();
       pollTimer = setInterval(poll, options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL);
       if (options.mode === "offer") {
@@ -188,6 +197,7 @@ export function createBeaconSignalingTransport(
       }
     } catch (error) {
       if (!closed) {
+        options.app.core?.logger.error({ namespace: "workspace", event: "beacon-transport-start-failed", error, fields: { mode: options.mode, network: options.network.name } });
         onEvent("exhausted");
       }
     }

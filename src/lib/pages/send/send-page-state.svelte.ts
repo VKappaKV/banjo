@@ -26,6 +26,7 @@ import type { WalletAppState } from "$lib/app/wallet-app-state.svelte";
 import { assetHoldingId } from "$lib/app/portfolio";
 import { queryClient } from "$lib/app/query-client";
 import { queryKeys } from "$lib/app/query-keys";
+import { createLogCorrelationId } from "$core/logging";
 
 export type SendMode = "algo" | "asa" | "rekey" | "online-keyreg" | "offline-keyreg";
 export type SendStep = "form" | "review" | "submitting" | "done";
@@ -155,6 +156,7 @@ export class SendPageState {
 
 	setMode = (mode: SendMode): void => {
 		this.mode = mode;
+		this.app.core?.logger.info({ namespace: "send", event: "mode-selected", fields: { mode } });
 	};
 
 	setSender = (value: string | string[] | undefined): void => {
@@ -262,6 +264,13 @@ export class SendPageState {
 
 	buildReview = async (): Promise<void> => {
 		this.error = "";
+		const correlationId = createLogCorrelationId("send-review");
+		this.app.core?.logger.info({
+			namespace: "send",
+			event: "review-build-started",
+			correlationId,
+			fields: { mode: this.mode, network: this.selectedNetwork.name, hasNote: this.noteBytes > 0 },
+		});
 		try {
 			this.validateCommon();
 
@@ -328,8 +337,21 @@ export class SendPageState {
 			}
 
 			this.step = "review";
+			this.app.core?.logger.info({
+				namespace: "send",
+				event: "review-build-completed",
+				correlationId,
+				fields: {
+					mode: this.mode,
+					reviewType: this.review?.type,
+					transactionCount: this.review?.type === "direct" ? this.review.transactions.length : undefined,
+					warningCount: this.review?.warnings.length ?? 0,
+					needsPassword: this.review?.needsPassword ?? false,
+				},
+			});
 		} catch (err) {
 			this.error = err instanceof Error ? err.message : "Failed to build transaction.";
+			this.app.core?.logger.warn({ namespace: "send", event: "review-build-failed", correlationId, error: err, fields: { mode: this.mode } });
 		}
 	};
 
@@ -359,6 +381,7 @@ export class SendPageState {
 		if (plan.type !== "requires-arc59") {
 			throw new Error("Receiver is not opted into this asset and no ARC-59 router is configured.");
 		}
+		this.app.core?.logger.info({ namespace: "arc59", event: "route-selected", fields: { routerAppId: plan.routerAppId, assetId: assetId.toString() } });
 
 		if (!this.app.core?.approvalController) throw new Error("Signing approval controller is not available.");
 
@@ -459,6 +482,13 @@ export class SendPageState {
 		if (!this.review) return;
 		this.error = "";
 		this.step = "submitting";
+		const correlationId = createLogCorrelationId("send-submit");
+		this.app.core?.logger.info({
+			namespace: "send",
+			event: "submit-started",
+			correlationId,
+			fields: { mode: this.mode, reviewType: this.review.type, network: this.selectedNetwork.name },
+		});
 
 		try {
 			if (this.review.needsPassword && !this.password) throw new Error("Password is required to sign with this account.");
@@ -475,9 +505,16 @@ export class SendPageState {
 
 			await queryClient.invalidateQueries({ queryKey: queryKeys.accounts(this.app.state.networkName) });
 			this.step = "done";
+			this.app.core?.logger.info({
+				namespace: "send",
+				event: "submit-completed",
+				correlationId,
+				fields: { mode: this.mode, reviewType: this.review.type, txId: this.txId },
+			});
 		} catch (err) {
 			this.error = err instanceof Error ? err.message : "Failed to submit transaction.";
 			this.step = "review";
+			this.app.core?.logger.error({ namespace: "send", event: "submit-failed", correlationId, error: err, fields: { mode: this.mode, reviewType: this.review.type } });
 		}
 	};
 }

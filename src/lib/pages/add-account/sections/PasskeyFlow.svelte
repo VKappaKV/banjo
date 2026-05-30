@@ -26,19 +26,22 @@
 
   async function handleRestore() {
     if (!app.core) return;
-    error = "";
-    step = "restoring";
-    try {
-      const result = await restorePasskeySeed({
+	error = "";
+	step = "restoring";
+	try {
+		app.core.logger.info({ namespace: "onboarding", event: "passkey-restore-started" });
+		const result = await restorePasskeySeed({
         storage: app.core.storage,
         credentialProvider: app.core.credentialProvider,
       });
       seedId = result.seedId;
-      message = `Passkey restored — seed ID ${result.seedId}`;
-      step = "done";
-    } catch (e) {
-      error = e instanceof Error ? e.message : "Restore failed.";
-      step = "choose";
+		message = `Passkey restored — seed ID ${result.seedId}`;
+		app.core.logger.info({ namespace: "onboarding", event: "passkey-restore-completed", fields: { seedId: result.seedId } });
+		step = "done";
+	} catch (e) {
+		error = e instanceof Error ? e.message : "Restore failed.";
+		app.core.logger.error({ namespace: "onboarding", event: "passkey-restore-failed", error: e });
+		step = "choose";
     }
   }
 
@@ -49,19 +52,22 @@
 
   async function handleRegister() {
     if (!app.core) return;
-    error = "";
-    step = "registering";
-    try {
-      const result = await registerPasskeySeed({
+	error = "";
+	step = "registering";
+	try {
+		app.core.logger.info({ namespace: "onboarding", event: "passkey-register-started" });
+		const result = await registerPasskeySeed({
         storage: app.core.storage,
         credentialProvider: app.core.credentialProvider,
       });
       seedId = result.seedId;
-      message = `Passkey registered — seed ID ${result.seedId}`;
-      step = "done";
-    } catch (e) {
-      error = e instanceof Error ? e.message : "Registration failed.";
-      step = "choose";
+		message = `Passkey registered — seed ID ${result.seedId}`;
+		app.core.logger.info({ namespace: "onboarding", event: "passkey-register-completed", fields: { seedId: result.seedId } });
+		step = "done";
+	} catch (e) {
+		error = e instanceof Error ? e.message : "Registration failed.";
+		app.core.logger.error({ namespace: "onboarding", event: "passkey-register-failed", error: e });
+		step = "choose";
     }
   }
 </script>
