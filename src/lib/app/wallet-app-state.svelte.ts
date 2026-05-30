@@ -129,6 +129,7 @@ export class WalletAppState {
 			this.state = {
 				...state,
 				accountInfo: result.accountInfo,
+				hotKeyAddresses: await this.core.storage.listHotKeyAddresses(),
 				namespaceRecords: result.namespaceRecords,
 			};
 			this.notify("Wallet refreshed", "success");
