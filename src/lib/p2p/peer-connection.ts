@@ -5,11 +5,8 @@ import type {
   PeerConnectionCallbacks,
   RelayMessage,
 } from "./workspace-types";
-import {
-  createRelayClient,
-  type RelayClient,
-  type RelayEventType,
-} from "./relay-client";
+import { createWebSocketSignalingTransport } from "./websocket-signaling-transport";
+import type { SignalingEventHandler, SignalingEventType, SignalingTransport } from "./signaling-transport";
 
 const PEER_CONNECTION_TIMEOUT = 30000;
 const RTC_CONFIG: RTCConfiguration = {
@@ -17,7 +14,7 @@ const RTC_CONFIG: RTCConfiguration = {
 };
 
 export interface PeerConnection {
-  readonly relay: RelayClient;
+  readonly transport: SignalingTransport;
   readonly peerId: string;
   readonly sessionId: string;
   sendStateSync: (state: WorkspaceState) => void;
@@ -31,11 +28,15 @@ export interface PeerConnection {
 }
 
 export function createPeerConnection(
-  relayUrl: string,
-  sessionId: string,
-  callbacks: PeerConnectionCallbacks,
-  existingPeerId?: string,
+  options: {
+    relayUrl?: string;
+    sessionId: string;
+    callbacks: PeerConnectionCallbacks;
+    existingPeerId?: string;
+    transportFactory?: (onEvent: SignalingEventHandler) => SignalingTransport;
+  },
 ): PeerConnection {
+  const { callbacks, sessionId, existingPeerId } = options;
   const dataChannelHandlers: Array<(data: string, peerId: string) => void> = [];
   const connections = new Map<string, RTCPeerConnection>();
   const dataChannels = new Map<string, RTCDataChannel>();
@@ -86,9 +87,7 @@ export function createPeerConnection(
     }
   }
 
-  const relay = createRelayClient(
-    { url: relayUrl, sessionId, peerId: existingPeerId },
-    (type: RelayEventType, message?: RelayMessage) => {
+  const onSignalingEvent: SignalingEventHandler = (type: SignalingEventType, message?: RelayMessage) => {
       switch (type) {
         case "open":
           callbacks.onConnectionStatus?.(true);
@@ -142,11 +141,17 @@ export function createPeerConnection(
           break;
         }
       }
-    },
-  );
+    };
+
+  const transport = options.transportFactory
+    ? options.transportFactory(onSignalingEvent)
+    : createWebSocketSignalingTransport(
+        { url: options.relayUrl ?? "ws://localhost:9876", sessionId, peerId: existingPeerId },
+        onSignalingEvent,
+      );
 
   function initiateConnection(targetPeerId: string) {
-    if (connections.has(targetPeerId) || targetPeerId === relay.peerId) return;
+    if (connections.has(targetPeerId) || targetPeerId === transport.peerId) return;
 
     const pc = new RTCPeerConnection(RTC_CONFIG);
     connections.set(targetPeerId, pc);
@@ -170,10 +175,11 @@ export function createPeerConnection(
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
-        relay.send({
+        if (!transport.supportsTrickleIce) return;
+        void transport.send({
           type: "signal:candidate",
           target: targetPeerId,
-          payload: { candidate: event.candidate.toJSON(), peerId: relay.peerId },
+          payload: { candidate: event.candidate.toJSON(), peerId: transport.peerId },
         });
       }
     };
@@ -199,12 +205,13 @@ export function createPeerConnection(
 
     pc.createOffer()
       .then((offer) => pc.setLocalDescription(offer))
+      .then(() => transport.supportsTrickleIce ? undefined : waitForIceGatheringComplete(pc))
       .then(() => {
         if (pc.localDescription) {
-          relay.send({
+          void transport.send({
             type: "signal:offer",
             target: targetPeerId,
-            payload: { sdp: pc.localDescription.sdp, peerId: relay.peerId },
+            payload: { sdp: pc.localDescription.sdp, peerId: transport.peerId },
           });
         }
       })
@@ -229,10 +236,11 @@ export function createPeerConnection(
 
       pc.onicecandidate = (event) => {
         if (event.candidate) {
-          relay.send({
+          if (!transport.supportsTrickleIce) return;
+          void transport.send({
             type: "signal:candidate",
             target: fromPeerId,
-            payload: { candidate: event.candidate.toJSON(), peerId: relay.peerId },
+            payload: { candidate: event.candidate.toJSON(), peerId: transport.peerId },
           });
         }
       };
@@ -255,12 +263,13 @@ export function createPeerConnection(
     pc.setRemoteDescription(new RTCSessionDescription({ type: "offer", sdp }))
       .then(() => pc!.createAnswer())
       .then((answer) => pc!.setLocalDescription(answer))
+      .then(() => transport.supportsTrickleIce ? undefined : waitForIceGatheringComplete(pc!))
       .then(() => {
         if (pc!.localDescription) {
-          relay.send({
+          void transport.send({
             type: "signal:answer",
             target: fromPeerId,
-            payload: { sdp: pc!.localDescription.sdp, peerId: relay.peerId },
+            payload: { sdp: pc!.localDescription.sdp, peerId: transport.peerId },
           });
         }
       })
@@ -298,12 +307,12 @@ export function createPeerConnection(
   }
 
   return {
-    relay,
+    transport,
     get peerId() {
-      return relay.peerId;
+      return transport.peerId;
     },
     get sessionId() {
-      return relay.sessionId;
+      return transport.sessionId;
     },
     sendStateSync(state: WorkspaceState) {
       sendToAll("workspace:state_sync", { state });
@@ -333,7 +342,25 @@ export function createPeerConnection(
       }
       dataChannels.clear();
       connections.clear();
-      relay.close();
+      transport.close();
     },
   };
+}
+
+function waitForIceGatheringComplete(pc: RTCPeerConnection): Promise<void> {
+  if (pc.iceGatheringState === "complete") return Promise.resolve();
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      pc.removeEventListener("icegatheringstatechange", onStateChange);
+      resolve();
+    }, 5000);
+    function onStateChange() {
+      if (pc.iceGatheringState === "complete") {
+        clearTimeout(timeout);
+        pc.removeEventListener("icegatheringstatechange", onStateChange);
+        resolve();
+      }
+    }
+    pc.addEventListener("icegatheringstatechange", onStateChange);
+  });
 }

@@ -50,6 +50,9 @@ importers:
       svelte-spa-router:
         specifier: ^5.1.0
         version: 5.1.0(svelte@5.55.9)
+      tweetnacl:
+        specifier: ^1.0.3
+        version: 1.0.3
       ws:
         specifier: ^8.21.0
         version: 8.21.0

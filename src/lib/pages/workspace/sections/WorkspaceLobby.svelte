@@ -9,6 +9,7 @@
 
 	let joinCode = $state("");
 	let relayInput = $state(ws.relayUrl);
+	let showAdvanced = $state(false);
 
 	function handleCreate() {
 		ws.relayUrl = relayInput;
@@ -19,6 +20,16 @@
 		if (!joinCode.trim()) return;
 		ws.relayUrl = relayInput;
 		ws.joinSession(joinCode.trim());
+	}
+
+	function handleBeaconOffer() {
+		ws.signalingMode = "beacon";
+		ws.createBeaconSession();
+	}
+
+	function handleBeaconListen() {
+		ws.signalingMode = "beacon";
+		ws.listenBeaconSession();
 	}
 
 	function computeMsigAddr() {
@@ -49,19 +60,49 @@
 			</Card.Description>
 		</Card.Header>
 		<Card.Content class="grid gap-4">
-			<div class="rounded border border-amber-500/30 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-400/20 dark:bg-amber-950 dark:text-amber-200">
-				<strong>Relay required.</strong> Before connecting, start the relay in a terminal:
-				<code class="mt-1 block rounded bg-amber-100 px-2 py-1 font-mono text-xs dark:bg-amber-900">node server/relay.mjs</code>
+			<div class="rounded border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
+				<strong>BEACON default.</strong> Workspace signaling uses encrypted Algorand note
+				transactions instead of a TCP relay. WebSocket relay is still available under Advanced.
 			</div>
+
+			{#if !ws.beaconConfigured}
+				<Alert.Root variant="destructive">
+					<Alert.Title>BEACON Not Configured</Alert.Title>
+					<Alert.Description>
+						Set <code class="font-mono text-xs">{ws.beaconProtocolEnvName}</code> to a BEACON
+						protocol address for {ws.selectedNetwork.name}.
+					</Alert.Description>
+				</Alert.Root>
+			{:else}
+				<div class="rounded bg-muted px-3 py-2 text-xs">
+					<span class="text-muted-foreground">BEACON address:</span>
+					<span class="ml-1 font-mono">{ws.beaconProtocolAddress}</span>
+				</div>
+			{/if}
+
 			<div class="grid gap-2">
-				<label for="relay-url" class="text-sm font-medium">Relay Server</label>
-				<input
-					id="relay-url"
-					type="text"
-					bind:value={relayInput}
-					class="rounded border bg-background px-3 py-2 text-sm"
-					placeholder="ws://localhost:9876"
-				/>
+				<label for="beacon-identity" class="text-sm font-medium">BEACON Identity</label>
+				<select
+					id="beacon-identity"
+					class="rounded border bg-background px-3 py-2 text-sm font-mono"
+					bind:value={ws.beaconIdentityAddress}
+				>
+					<option value="">Select signing account...</option>
+					{#each ws.signableAccounts as account (account.addr)}
+						<option value={account.addr}>{account.name ?? account.addr.slice(0, 12)}…{account.addr.slice(-4)}</option>
+					{/each}
+				</select>
+				<div class="flex flex-wrap gap-2">
+					<Button size="sm" variant="outline" disabled={ws.beaconBusy || !ws.beaconConfigured} onclick={ws.checkBeaconAnnouncement}>
+						Check BEACON
+					</Button>
+					<Button size="sm" variant="outline" disabled={ws.beaconBusy || !ws.beaconConfigured} onclick={ws.initializeBeacon}>
+						Initialize BEACON
+					</Button>
+					{#if ws.beaconStatus}
+						<span class="self-center text-xs text-muted-foreground">{ws.beaconStatus}</span>
+					{/if}
+				</div>
 			</div>
 
 			<div class="grid gap-2">
@@ -126,21 +167,54 @@
 				</div>
 			{/if}
 
-			<Button onclick={handleCreate}>Create Workspace</Button>
-
-			<div class="flex items-center gap-2 before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border">
-				<span class="text-xs text-muted-foreground">or join existing</span>
-			</div>
-
-			<div class="flex gap-2">
+			<div class="grid gap-2">
+				<label for="beacon-recipient" class="text-sm font-medium">Recipient Address</label>
 				<input
+					id="beacon-recipient"
 					type="text"
-					bind:value={joinCode}
-					class="min-w-0 flex-1 rounded border bg-background px-3 py-2 text-sm"
-					placeholder="Session code"
+					bind:value={ws.beaconRecipientAddress}
+					class="rounded border bg-background px-3 py-2 text-sm font-mono"
+					placeholder="Address to invite"
 				/>
-				<Button variant="outline" onclick={handleJoin}>Join</Button>
 			</div>
+
+			<div class="grid gap-2 sm:grid-cols-2">
+				<Button disabled={!ws.beaconConfigured || ws.beaconBusy} onclick={handleBeaconOffer}>Send BEACON Offer</Button>
+				<Button variant="outline" disabled={!ws.beaconConfigured || ws.beaconBusy} onclick={handleBeaconListen}>Listen for Offer</Button>
+			</div>
+
+			<Button variant="ghost" class="justify-self-start px-0" onclick={() => (showAdvanced = !showAdvanced)}>
+				{showAdvanced ? "Hide" : "Show"} Advanced WebSocket Relay
+			</Button>
+
+			{#if showAdvanced}
+				<div class="grid gap-4 rounded border p-3">
+					<div class="rounded border border-amber-500/30 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-400/20 dark:bg-amber-950 dark:text-amber-200">
+						<strong>Developer fallback.</strong> Start the relay in a terminal:
+						<code class="mt-1 block rounded bg-amber-100 px-2 py-1 font-mono text-xs dark:bg-amber-900">node server/relay.mjs</code>
+					</div>
+					<div class="grid gap-2">
+						<label for="relay-url" class="text-sm font-medium">Relay Server</label>
+						<input
+							id="relay-url"
+							type="text"
+							bind:value={relayInput}
+							class="rounded border bg-background px-3 py-2 text-sm"
+							placeholder="ws://localhost:9876"
+						/>
+					</div>
+					<Button onclick={() => { ws.signalingMode = "websocket"; handleCreate(); }}>Create Relay Workspace</Button>
+					<div class="flex gap-2">
+						<input
+							type="text"
+							bind:value={joinCode}
+							class="min-w-0 flex-1 rounded border bg-background px-3 py-2 text-sm"
+							placeholder="Session code"
+						/>
+						<Button variant="outline" onclick={() => { ws.signalingMode = "websocket"; handleJoin(); }}>Join</Button>
+					</div>
+				</div>
+			{/if}
 		</Card.Content>
 	</Card.Root>
 

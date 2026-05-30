@@ -1,7 +1,8 @@
-import type { RelayMessage, RelayMessageType } from "./workspace-types";
+import type { RelayMessage } from "./workspace-types";
+import type { SignalingEventHandler, SignalingEventType } from "./signaling-transport";
 
-export type RelayEventType = "open" | "message" | "close" | "error" | "exhausted";
-export type RelayEventHandler = (type: RelayEventType, message?: RelayMessage) => void;
+export type RelayEventType = SignalingEventType;
+export type RelayEventHandler = SignalingEventHandler;
 
 export interface RelayClientOptions {
   url: string;

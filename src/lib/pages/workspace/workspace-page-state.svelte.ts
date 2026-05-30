@@ -30,9 +30,16 @@ import type { WalletAppState } from "$lib/app/wallet-app-state.svelte";
 import { selectNetwork } from "$core/state";
 import { builtInNetworks } from "$core/data/networks";
 import { createAlgodClient } from "$core/network";
+import { createBeaconSignalingTransport } from "$p2p/beacon/beacon-signaling-transport";
+import { getBeaconProtocolAddress, getBeaconProtocolEnvName } from "$p2p/beacon/beacon-config";
+import { deriveBeaconKeypair } from "$p2p/beacon/beacon-crypto";
+import { lookupBeaconAnnouncement, submitBeaconNote } from "$p2p/beacon/beacon-indexer";
+import { BEACON_PROTO } from "$p2p/beacon/beacon-types";
+import type { SignalingEventHandler, SignalingTransport } from "$p2p/signaling-transport";
 
 const DEFAULT_RELAY_URL = "ws://localhost:9876";
 const SESSION_STORAGE_KEY = "banjo:workspace-session";
+type WorkspaceSignalingMode = "beacon" | "websocket";
 
 export type ConnectionStatus = "idle" | "connecting" | "connected" | "error";
 export type SigningStep = "idle" | "signing" | "submitting" | "done" | "error";
@@ -42,7 +49,15 @@ class WorkspacePageState {
   status = $state<ConnectionStatus>("idle");
   error = $state("");
   sessionId = $state("");
+  signalingMode = $state<WorkspaceSignalingMode>("beacon");
   relayUrl = $state(DEFAULT_RELAY_URL);
+  beaconIdentityAddress = $state("");
+  beaconRecipientAddress = $state("");
+  beaconProtocolAddress = $state("");
+  beaconProtocolEnvName = $state("VITE_BEACON_PROTOCOL_ADDRESS_MAINNET");
+  beaconInitialized = $state(false);
+  beaconBusy = $state(false);
+  beaconStatus = $state("");
   peers = $state<WorkspacePeer[]>([]);
   transactions = $state<TransactionDraft[]>([]);
   peerId = $state("");
@@ -58,7 +73,7 @@ class WorkspacePageState {
 
   swapPairs = $state<SwapPair[]>([]);
   transitionTxId = $state("");
-  savedSession = $state<{ sessionId: string; relayUrl: string; mode: WorkspaceMode } | null>(null);
+  savedSession = $state<{ sessionId: string; relayUrl: string; mode: WorkspaceMode; signalingMode?: WorkspaceSignalingMode } | null>(null);
 
   private session: WorkspaceSession | null = null;
   private app: WalletAppState | null = null;
@@ -74,6 +89,7 @@ class WorkspacePageState {
     this.status = "idle";
     this.error = "";
     this.sessionId = "";
+    this.signalingMode = "beacon";
     this.peers = [];
     this.transactions = [];
     this.peerId = "";
@@ -86,6 +102,10 @@ class WorkspacePageState {
     this.multisigComputedAddr = "";
     this.swapPairs = [];
     this.transitionTxId = "";
+    this.beaconRecipientAddress = "";
+    this.beaconInitialized = false;
+    this.beaconBusy = false;
+    this.beaconStatus = "";
     this.loadSavedSession();
   }
 
@@ -96,6 +116,14 @@ class WorkspacePageState {
   setApp(app: WalletAppState) {
     this.app = app;
     this.selectedNetworkName = selectNetwork(app.state, builtInNetworks)?.name ?? "LocalNet";
+    this.refreshBeaconConfig();
+    this.beaconIdentityAddress ||= this.signableAccounts[0]?.addr ?? "";
+  }
+
+  refreshBeaconConfig() {
+    const network = this.selectedNetwork;
+    this.beaconProtocolAddress = getBeaconProtocolAddress(network) ?? "";
+    this.beaconProtocolEnvName = getBeaconProtocolEnvName(network);
   }
 
   get signableAccounts() {
@@ -119,6 +147,10 @@ class WorkspacePageState {
   get selectedNetwork() {
     if (!this.app) return builtInNetworks[0]!;
     return selectNetwork(this.app.state, builtInNetworks);
+  }
+
+  get beaconConfigured() {
+    return !!this.beaconProtocolAddress && algosdk.isValidAddress(this.beaconProtocolAddress);
   }
 
   get multisigConfig(): MultisigConfig | null {
@@ -145,12 +177,80 @@ class WorkspacePageState {
   }
 
   createSession = async () => {
+    if (this.signalingMode === "beacon") {
+      await this.createBeaconSession();
+      return;
+    }
     if (!this.relayUrl.trim()) return;
     this.status = "connecting";
     this.error = "";
     const sessionId = crypto.randomUUID().slice(0, 8);
     this.sessionId = sessionId;
     this.connectSession(sessionId);
+  };
+
+  createBeaconSession = async () => {
+    if (!this.app) return;
+    this.refreshBeaconConfig();
+    if (!this.beaconConfigured) {
+      this.error = `BEACON protocol address is not configured for ${this.selectedNetwork.name}. Set ${this.beaconProtocolEnvName}.`;
+      this.status = "error";
+      return;
+    }
+    if (!algosdk.isValidAddress(this.beaconIdentityAddress)) {
+      this.error = "Select a valid BEACON identity account.";
+      this.status = "error";
+      return;
+    }
+    if (!algosdk.isValidAddress(this.beaconRecipientAddress)) {
+      this.error = "Enter a valid recipient address for the BEACON workspace offer.";
+      this.status = "error";
+      return;
+    }
+    this.status = "connecting";
+    this.error = "";
+    this.beaconStatus = "Preparing encrypted BEACON offer...";
+    const sessionId = crypto.randomUUID().slice(0, 8);
+    this.sessionId = sessionId;
+    this.connectSession(sessionId, (onEvent) => createBeaconSignalingTransport({
+      app: this.app!,
+      network: this.selectedNetwork,
+      protocolAddress: this.beaconProtocolAddress,
+      identityAddress: this.beaconIdentityAddress,
+      recipientAddress: this.beaconRecipientAddress,
+      mode: "offer",
+      sessionId,
+      password: this.password || undefined,
+    }, onEvent));
+  };
+
+  listenBeaconSession = async () => {
+    if (!this.app) return;
+    this.refreshBeaconConfig();
+    if (!this.beaconConfigured) {
+      this.error = `BEACON protocol address is not configured for ${this.selectedNetwork.name}. Set ${this.beaconProtocolEnvName}.`;
+      this.status = "error";
+      return;
+    }
+    if (!algosdk.isValidAddress(this.beaconIdentityAddress)) {
+      this.error = "Select a valid BEACON identity account.";
+      this.status = "error";
+      return;
+    }
+    this.status = "connecting";
+    this.error = "";
+    this.beaconStatus = "Listening for encrypted BEACON offers...";
+    const sessionId = crypto.randomUUID().slice(0, 8);
+    this.sessionId = sessionId;
+    this.connectSession(sessionId, (onEvent) => createBeaconSignalingTransport({
+      app: this.app!,
+      network: this.selectedNetwork,
+      protocolAddress: this.beaconProtocolAddress,
+      identityAddress: this.beaconIdentityAddress,
+      mode: "listen",
+      sessionId,
+      password: this.password || undefined,
+    }, onEvent));
   };
 
   joinSession = (sessionId: string) => {
@@ -161,7 +261,72 @@ class WorkspacePageState {
     this.connectSession(sessionId);
   };
 
-  private connectSession(sessionId: string) {
+  checkBeaconAnnouncement = async () => {
+    if (!this.app || !algosdk.isValidAddress(this.beaconIdentityAddress)) return;
+    this.refreshBeaconConfig();
+    if (!this.beaconConfigured) {
+      this.beaconInitialized = false;
+      return;
+    }
+    this.beaconBusy = true;
+    this.beaconStatus = "Checking BEACON announcement...";
+    try {
+      const announcement = await lookupBeaconAnnouncement({
+        network: this.selectedNetwork,
+        protocolAddress: this.beaconProtocolAddress,
+        address: this.beaconIdentityAddress,
+        useFallback: this.app.state.fallbackEnabled,
+      });
+      this.beaconInitialized = !!announcement?.wpk;
+      this.beaconStatus = this.beaconInitialized ? "BEACON initialized." : "BEACON announcement not found.";
+    } catch (err) {
+      this.beaconStatus = err instanceof Error ? err.message : "Could not check BEACON announcement.";
+    } finally {
+      this.beaconBusy = false;
+    }
+  };
+
+  initializeBeacon = async () => {
+    if (!this.app) return;
+    this.refreshBeaconConfig();
+    if (!this.beaconConfigured) {
+      this.error = `BEACON protocol address is not configured for ${this.selectedNetwork.name}. Set ${this.beaconProtocolEnvName}.`;
+      return;
+    }
+    if (!algosdk.isValidAddress(this.beaconIdentityAddress)) {
+      this.error = "Select a valid BEACON identity account.";
+      return;
+    }
+    this.beaconBusy = true;
+    this.error = "";
+    this.beaconStatus = "Deriving BEACON key and broadcasting announcement...";
+    try {
+      const keypair = await deriveBeaconKeypair({
+        app: this.app,
+        address: this.beaconIdentityAddress,
+        network: this.selectedNetwork,
+        password: this.password || undefined,
+      });
+      const txid = await submitBeaconNote({
+        app: this.app,
+        network: this.selectedNetwork,
+        sender: this.beaconIdentityAddress,
+        protocolAddress: this.beaconProtocolAddress,
+        payload: { proto: BEACON_PROTO, type: "announce", wpk: keypair.wpk, ts: Date.now() },
+        password: this.password || undefined,
+      });
+      this.beaconInitialized = true;
+      this.beaconStatus = txid ? `BEACON initialized: ${txid.slice(0, 8)}...` : "BEACON initialized.";
+      this.app.notify("BEACON initialized", "success", 3000);
+    } catch (err) {
+      this.error = err instanceof Error ? err.message : "Failed to initialize BEACON.";
+      this.beaconStatus = this.error;
+    } finally {
+      this.beaconBusy = false;
+    }
+  };
+
+  private connectSession(sessionId: string, signalingTransportFactory?: (onEvent: SignalingEventHandler) => SignalingTransport) {
     try {
       let knownPeers = new Set<string>();
 
@@ -215,13 +380,17 @@ class WorkspacePageState {
         onConnectionStatus: (connected: boolean | "exhausted") => {
           if (connected === "exhausted") {
             this.status = "error";
-            this.error = "Relay server not reachable. Make sure the relay is running (`node server/relay.mjs`).";
+            this.error = this.signalingMode === "beacon"
+              ? "BEACON signaling failed. Check protocol address config, recipient announcement, and network connectivity."
+              : "Relay server not reachable. Make sure the relay is running (`node server/relay.mjs`).";
           } else if (!connected && this.status === "connected") {
             this.status = "error";
             this.error = "Connection lost — reconnecting...";
           } else if (!connected && this.status === "connecting") {
             this.status = "error";
-            this.error = "Could not reach relay server. Is it running?";
+            this.error = this.signalingMode === "beacon"
+              ? "Could not start BEACON signaling."
+              : "Could not reach relay server. Is it running?";
           } else if (connected && (this.status === "error" || this.status === "connecting")) {
             this.status = "connected";
             this.error = "";
@@ -236,6 +405,7 @@ class WorkspacePageState {
           relayUrl: this.relayUrl,
           sessionId,
           mode: this.mode,
+          signalingTransportFactory,
           initialState: { multisig: multisig ?? undefined },
         },
         callbacks,
@@ -254,7 +424,7 @@ class WorkspacePageState {
 
   private saveSession() {
     try {
-      const data = { sessionId: this.sessionId, relayUrl: this.relayUrl, mode: this.mode };
+      const data = { sessionId: this.sessionId, relayUrl: this.relayUrl, mode: this.mode, signalingMode: this.signalingMode };
       globalThis.localStorage?.setItem(SESSION_STORAGE_KEY, JSON.stringify(data));
     } catch { /* storage unavailable */ }
   }
@@ -263,7 +433,7 @@ class WorkspacePageState {
     try {
       const raw = globalThis.localStorage?.getItem(SESSION_STORAGE_KEY);
       if (raw) {
-        this.savedSession = JSON.parse(raw) as { sessionId: string; relayUrl: string; mode: WorkspaceMode };
+        this.savedSession = JSON.parse(raw) as { sessionId: string; relayUrl: string; mode: WorkspaceMode; signalingMode?: WorkspaceSignalingMode };
       }
     } catch { /* ignore */ }
   }
@@ -279,6 +449,7 @@ class WorkspacePageState {
     if (!this.savedSession) return;
     this.relayUrl = this.savedSession.relayUrl;
     this.mode = this.savedSession.mode;
+    this.signalingMode = this.savedSession.signalingMode ?? "websocket";
     this.joinSession(this.savedSession.sessionId);
   };
 

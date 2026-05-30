@@ -10,12 +10,14 @@ import {
   createPeerConnection,
   type PeerConnection,
 } from "./peer-connection";
+import type { SignalingEventHandler, SignalingTransport } from "./signaling-transport";
 
 export interface WorkspaceSessionOptions {
   relayUrl: string;
   sessionId: string;
   mode: WorkspaceMode;
   peerId?: string;
+  signalingTransportFactory?: (onEvent: SignalingEventHandler) => SignalingTransport;
   initialState?: Partial<WorkspaceState>;
 }
 
@@ -126,12 +128,13 @@ export function createWorkspaceSession(
     },
   };
 
-  const conn = createPeerConnection(
-    options.relayUrl,
-    options.sessionId,
-    peerCallbacks,
-    options.peerId,
-  );
+  const conn = createPeerConnection({
+    relayUrl: options.relayUrl,
+    sessionId: options.sessionId,
+    callbacks: peerCallbacks,
+    existingPeerId: options.peerId,
+    transportFactory: options.signalingTransportFactory,
+  });
 
   state.peers = [{ peerId: conn.peerId, connected: true }];
 

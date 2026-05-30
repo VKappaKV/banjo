@@ -85,12 +85,13 @@ Banjo v1 targets these runtime modes from the start:
 
 ## P2P Workspace
 
-Banjo includes a collaborative transaction workspace that uses WebRTC data channels (signalled via a WebSocket relay) to let peers build, review, and sign transactions together with no on-chain footprint during negotiation.
+Banjo includes a collaborative transaction workspace that uses WebRTC data channels to let peers build, review, and sign transactions together. By default, WebRTC signaling uses BEACON-style encrypted Algorand note transactions instead of a TCP WebSocket relay. The WebSocket relay remains available as an advanced local-development fallback.
 
 ### Architecture
 
-- **Relay server** (`server/relay.mjs`) — lightweight Node.js WebSocket signalling relay. Manages session creation, peer discovery, and forwarding of WebRTC offer/answer/ICE candidates.
-- **Peer connection** (`src/lib/p2p/peer-connection.ts`) — wraps `RTCPeerConnection` + data channel lifecycle. Uses Google's public STUN. Data channels are `ordered: true` for reliable delivery.
+- **BEACON signaling** (`src/lib/p2p/beacon/`) — derives a wallet-authenticated encryption key, publishes/reads `BEACON/1:` notes from a configured protocol address, and exchanges encrypted WebRTC offer/answer payloads on-chain.
+- **Advanced relay fallback** (`server/relay.mjs`) — optional lightweight Node.js WebSocket signalling relay for local development.
+- **Peer connection** (`src/lib/p2p/peer-connection.ts`) — wraps `RTCPeerConnection` + data channel lifecycle. Uses Google's public STUN. Data channels are `ordered: true` for reliable delivery. BEACON uses non-trickle ICE so complete SDP payloads can be posted in encrypted note fragments.
 - **Workspace session** (`src/lib/p2p/workspace-session.ts`) — orchestrates session lifecycle, state broadcasting, and transaction CRUD. Broadcasts full state on connect, then per-mutation diffs.
 - **Transaction signer** (`src/lib/p2p/workspace-signer.ts`) — converts `TransactionDraft` into real `algosdk.Transaction` using live suggested params, signs via the core `signWalletTransactionRequest` infrastructure, and encodes signed blobs as base64 for data channel transport.
 - **Workspace page** (`src/lib/pages/workspace/`) — route-level `WorkspacePage.svelte` with page state, lobby, toolbar, composer, review, and peers sections.
@@ -103,7 +104,19 @@ Banjo includes a collaborative transaction workspace that uses WebRTC data chann
 | **Swap** | (scaffolding) Two peers build reciprocal transactions for atomic submission. |
 | **Multisig** | (scaffolding) Participants collect signatures off-chain; group submitted when threshold met. |
 
-### Running the Relay
+### BEACON Configuration
+
+Set a public protocol noticeboard address for each network you want BEACON workspace signaling to support:
+
+```bash
+VITE_BEACON_PROTOCOL_ADDRESS_MAINNET=
+VITE_BEACON_PROTOCOL_ADDRESS_TESTNET=
+VITE_BEACON_PROTOCOL_ADDRESS_LOCALNET=
+```
+
+These are public Algorand addresses, not secrets. If no BEACON address is configured for the selected network, Workspace shows a configuration warning and the advanced WebSocket fallback remains available.
+
+### Advanced Relay Fallback
 
 ```bash
 cd server
@@ -114,11 +127,12 @@ node relay.mjs
 
 ### Development
 
-1. Start the relay server.
+1. Configure a BEACON protocol address for the selected network, or open Advanced and start the relay server.
 2. Open two browser tabs to `http://localhost:9000/workspace`.
-3. In one tab, click **Create Workspace**.
-4. In the other, paste the session code and click **Join**.
-5. Draft transactions, review, sign, and submit.
+3. Initialize BEACON for each signing identity once.
+4. In one tab, enter the recipient address and click **Send BEACON Offer**.
+5. In the other tab, click **Listen for Offer**.
+6. Draft transactions, review, sign, and submit after the WebRTC data channel opens.
 
 ## Roadmap
 
