@@ -22,7 +22,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
-      - run: pnpm test
+      - run: node server/relay.mjs &
+          sleep 2
+          pnpm test
+        shell: bash
       - run: pnpm build:web
       - run: pnpm build:ext:chrome
       - run: node scripts/audit-dist.mjs
