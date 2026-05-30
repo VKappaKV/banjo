@@ -1,0 +1,14 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "nixpacks",
+    "buildCommand": "pnpm build:web",
+    "watchPatterns": ["src/**", "public/**"]
+  },
+  "deploy": {
+    "numReplicas": 1,
+    "startCommand": "node server.js",
+    "restartPolicyType": "onFailure",
+    "restartPolicyMaxRetries": 3
+  }
+}

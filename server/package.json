@@ -1,0 +1,12 @@
+{
+  "name": "banjo-relay",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node relay.mjs",
+    "dev": "node --watch relay.mjs"
+  },
+  "dependencies": {
+    "ws": "^8.21.0"
+  }
+}

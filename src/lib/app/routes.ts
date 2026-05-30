@@ -9,6 +9,7 @@ import SwapPage from "$lib/pages/swap/SwapPage.svelte";
 import SettingsPage from "$lib/pages/settings/SettingsPage.svelte";
 import AccountDetailPage from "$lib/pages/account-detail/AccountDetailPage.svelte";
 import MultisigPage from "$lib/pages/multisig/MultisigPage.svelte";
+import WorkspacePage from "$lib/pages/workspace/WorkspacePage.svelte";
 
 export const routes: RouteDefinition = {
   "/": AccountsPage,
@@ -23,5 +24,6 @@ export const routes: RouteDefinition = {
   "/account-detail/:addr": AccountDetailPage,
   "/multisig": MultisigPage,
   "/multisig/:appId": MultisigPage,
+  "/workspace": WorkspacePage,
   "*": AccountsPage,
 };

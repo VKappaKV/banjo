@@ -9,6 +9,7 @@ export const walletViews = [
 	"swap",
 	"settings",
 	"multisig",
+	"workspace",
 ] as const;
 
 export type WalletView = (typeof walletViews)[number];
@@ -31,6 +32,7 @@ export const walletViewDefinitions: WalletViewDefinition[] = [
 	{ value: "swap", path: "/swap", label: "Swap", description: "Atomic swap acceptance" },
 	{ value: "settings", path: "/settings", label: "Settings", description: "Wallet preferences and network settings" },
 	{ value: "multisig", path: "/multisig", label: "Multisig", description: "ARC-55 account workflows" },
+	{ value: "workspace", path: "/workspace", label: "Workspace", description: "P2P collaborative transaction studio" },
 ];
 
 const hiddenSidebarViews = new Set<WalletView>([

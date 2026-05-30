@@ -212,7 +212,7 @@
 			<textarea
 				bind:value={addJson}
 				placeholder={`{"algod":{"url":"...","port":"...","token":"..."},"genesisID":"...","explorer":"..."}`}
-				class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring min-h-[200px] w-full rounded-lg border px-3 py-2 text-xs font-mono focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+				class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring min-h-50 w-full rounded-lg border px-3 py-2 text-xs font-mono focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 				spellcheck="false"
 			></textarea>
 			{#if addError}
@@ -235,7 +235,7 @@
 		<div class="grid gap-4">
 			<textarea
 				bind:value={editJson}
-				class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring min-h-[200px] w-full rounded-lg border px-3 py-2 text-xs font-mono focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+				class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring min-h-50 w-full rounded-lg border px-3 py-2 text-xs font-mono focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 				spellcheck="false"
 			></textarea>
 			{#if editError}

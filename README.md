@@ -5,11 +5,47 @@ Banjo is a Svelte wallet application being built around a framework-neutral wall
 ## Development Scripts
 
 - `pnpm dev` starts the Vite development server.
-- `pnpm build` creates a production build.
+- `pnpm build` creates a production build (includes extension entrypoints).
+- `pnpm build:web` creates a web-only production build (no extension artifacts).
+- `pnpm build:ext:chrome` creates an extension build with Chrome manifest.
+- `pnpm build:ext:firefox` creates an extension build with Firefox manifest.
+- `pnpm zip:chrome` packages the Chrome build into `releases/banjo-chrome-vX.X.X.zip`.
+- `pnpm zip:firefox` packages the Firefox build into `releases/banjo-firefox-vX.X.X.zip`.
 - `pnpm preview` serves the production build locally.
 - `pnpm check` runs Svelte and TypeScript checks. This is the minimum verification command for every implementation slice.
 - `pnpm test` runs unit tests once with Vitest.
 - `pnpm test:watch` runs unit tests in watch mode.
+- `pnpm bump-version <semver>` updates `package.json` and both extension manifests to the given version.
+
+## Deployment
+
+### Cloudflare Pages
+
+1. Push to the `main` branch or create a tag `v*` to trigger the deploy workflow.
+2. Set `CLOUDFLARE_API_TOKEN` in your GitHub repository secrets.
+3. The workflow runs `pnpm build:web` and deploys the `dist/` directory to Cloudflare Pages.
+4. The `public/_redirects` file handles SPA routing (`/* /index.html 200`).
+
+Alternatively, deploy manually:
+
+```bash
+pnpm build:web
+npx wrangler pages deploy dist --project-name=banjo
+```
+
+### Railway
+
+1. Create a new Railway project from the `railway` branch of this repository.
+2. Railway reads `railway.json` for build and deploy configuration.
+3. The build command (`pnpm build:web`) produces the `dist/` directory.
+4. The start command (`node server.js`) runs a minimal Express server with SPA fallback.
+
+### Extension Stores
+
+1. Run `pnpm bump-version <semver>` to set the version.
+2. Run `pnpm build:ext:chrome && pnpm zip:chrome` to produce the Chrome zip.
+3. Run `pnpm build:ext:firefox && pnpm zip:firefox` to produce the Firefox zip.
+4. Submit the resulting `.zip` files to the respective store dashboards.
 
 ## Architecture Notes
 
@@ -46,6 +82,43 @@ Banjo v1 targets these runtime modes from the start:
 - Banjo v1 starts with a separate Banjo IndexedDB database. Existing wallet IndexedDB data is not migrated in the first port.
 - Banjo exposes `window.banjo` only for extension detection. It does not expose a legacy compatibility alias in v1.
 - Wallet-branded identifiers are renamed to Banjo identifiers during the port. Neutral protocol and domain names remain unchanged when they are not wallet-branded, such as `WalletTransaction`, `Arc55App`, `Network`, and `SeedData`.
+
+## P2P Workspace
+
+Banjo includes a collaborative transaction workspace that uses WebRTC data channels (signalled via a WebSocket relay) to let peers build, review, and sign transactions together with no on-chain footprint during negotiation.
+
+### Architecture
+
+- **Relay server** (`server/relay.mjs`) — lightweight Node.js WebSocket signalling relay. Manages session creation, peer discovery, and forwarding of WebRTC offer/answer/ICE candidates.
+- **Peer connection** (`src/lib/p2p/peer-connection.ts`) — wraps `RTCPeerConnection` + data channel lifecycle. Uses Google's public STUN. Data channels are `ordered: true` for reliable delivery.
+- **Workspace session** (`src/lib/p2p/workspace-session.ts`) — orchestrates session lifecycle, state broadcasting, and transaction CRUD. Broadcasts full state on connect, then per-mutation diffs.
+- **Transaction signer** (`src/lib/p2p/workspace-signer.ts`) — converts `TransactionDraft` into real `algosdk.Transaction` using live suggested params, signs via the core `signWalletTransactionRequest` infrastructure, and encodes signed blobs as base64 for data channel transport.
+- **Workspace page** (`src/lib/pages/workspace/`) — route-level `WorkspacePage.svelte` with page state, lobby, toolbar, composer, review, and peers sections.
+
+### Modes
+
+| Mode | Description |
+|------|-------------|
+| **Send** | One peer drafts a payment/ASA/keyreg, the other reviews and signs. Signed blobs broadcast and submit to network. |
+| **Swap** | (scaffolding) Two peers build reciprocal transactions for atomic submission. |
+| **Multisig** | (scaffolding) Participants collect signatures off-chain; group submitted when threshold met. |
+
+### Running the Relay
+
+```bash
+cd server
+node relay.mjs
+# Default: ws://localhost:9876
+# Override: RELAY_PORT=9877 node relay.mjs
+```
+
+### Development
+
+1. Start the relay server.
+2. Open two browser tabs to `http://localhost:9000/workspace`.
+3. In one tab, click **Create Workspace**.
+4. In the other, paste the session code and click **Join**.
+5. Draft transactions, review, sign, and submit.
 
 ## Roadmap
 

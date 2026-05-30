@@ -1,0 +1,33 @@
+name: Release Extension
+on:
+  push:
+    tags: ["v*"]
+
+env:
+  PNPM_VERSION: 10
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [chrome, firefox]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm test
+      - run: pnpm build:ext:${{ matrix.target }}
+      - run: pnpm zip:${{ matrix.target }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: banjo-${{ matrix.target }}
+          path: releases/*.zip

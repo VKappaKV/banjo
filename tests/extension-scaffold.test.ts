@@ -4,8 +4,8 @@ import { describe, expect, it } from "vitest";
 import { buildRefererRules, buildSidePanelPath } from "../src/ext/background/routes";
 
 describe("extension scaffold", () => {
-	it("declares the built extension entrypoints in the MV3 manifest", () => {
-		const manifest = JSON.parse(readFileSync(join(process.cwd(), "public", "manifest.json"), "utf8"));
+	it("declares the built extension entrypoints in the Chrome MV3 manifest", () => {
+		const manifest = JSON.parse(readFileSync(join(process.cwd(), "public", "manifest.chrome.json"), "utf8"));
 
 		expect(manifest.manifest_version).toBe(3);
 		expect(manifest.background.service_worker).toBe("assets/background.js");
@@ -13,6 +13,15 @@ describe("extension scaffold", () => {
 		expect(manifest.content_scripts[0].js).toEqual(["assets/content-script.js"]);
 		expect(manifest.web_accessible_resources[0].resources).toContain("assets/page-client.js");
 		expect(manifest.permissions).toEqual(expect.arrayContaining(["sidePanel", "declarativeNetRequest"]));
+	});
+
+	it("declares Firefox browser_specific_settings in the Firefox manifest", () => {
+		const manifest = JSON.parse(readFileSync(join(process.cwd(), "public", "manifest.firefox.json"), "utf8"));
+
+		expect(manifest.manifest_version).toBe(3);
+		expect(manifest.browser_specific_settings.gecko.id).toBe("banjo-wallet@banjo.algo");
+		expect(manifest.browser_specific_settings.gecko.strict_min_version).toBe("109.0");
+		expect(manifest.background.service_worker).toBe("assets/background.js");
 	});
 
 	it("builds side-panel paths from Banjo protocol requests", () => {
