@@ -39,19 +39,22 @@
       error = "Wallet not initialized.";
       return;
     }
-    try {
-      const result = await createAndStoreBip39Seed({
+	try {
+		app.core.logger.info({ namespace: "onboarding", event: "bip39-create-started" });
+		const result = await createAndStoreBip39Seed({
         passphrase,
         storage: app.core.storage,
         cryptoProvider: app.core.cryptoProvider,
       });
       generatedMnemonic = result.mnemonic;
-      seedId = result.seedId;
-      step = "done";
-    } catch (e) {
-      error = e instanceof Error ? e.message : "Creation failed.";
-    }
-  }
+		seedId = result.seedId;
+		app.core.logger.info({ namespace: "onboarding", event: "bip39-create-completed", fields: { seedId: result.seedId } });
+		step = "done";
+	} catch (e) {
+		error = e instanceof Error ? e.message : "Creation failed.";
+		app.core.logger.error({ namespace: "onboarding", event: "bip39-create-failed", error: e });
+	}
+}
 </script>
 
 <div class="grid gap-4">
@@ -103,7 +106,7 @@
       </Card.Header>
       <Card.Content>
         <div class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-          {#each generatedMnemonic.split(" ") as word, i}
+			{#each generatedMnemonic.split(" ") as word, i (`${i}-${word}`)}
             <span class="text-muted-foreground text-right">{i + 1}.</span>
             <span class="font-mono">{word}</span>
           {/each}

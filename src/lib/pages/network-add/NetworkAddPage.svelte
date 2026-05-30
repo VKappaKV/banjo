@@ -20,21 +20,25 @@
   async function load() {
     await app.initialize();
     await request.load();
-    try {
-      if (request.request?.action !== "network") return;
-      network = validateDappNetworkRequest(
-        request.request.network,
-        app.allNetworks,
-      );
-    } catch (err) {
-      error = err instanceof Error ? err.message : "Invalid network request.";
-    }
-  }
+	try {
+		if (request.request?.action !== "network") return;
+		app.core?.logger.info({ namespace: "dapp", event: "network-request-preparing" });
+		network = validateDappNetworkRequest(
+			request.request.network,
+			app.allNetworks,
+		);
+		app.core?.logger.info({ namespace: "dapp", event: "network-request-prepared", fields: { network: network.name, genesisID: network.genesisID } });
+	} catch (err) {
+		error = err instanceof Error ? err.message : "Invalid network request.";
+		app.core?.logger.warn({ namespace: "dapp", event: "network-request-prepare-failed", error: err });
+	}
+}
 
   async function approve() {
     error = "";
-    try {
-      await app.initialize();
+	try {
+		app.core?.logger.info({ namespace: "dapp", event: "network-approval-started", fields: { network: network?.name, genesisID: network?.genesisID } });
+		await app.initialize();
       if (request.request?.action !== "network")
         throw new Error("No add-network request is pending.");
       if (!app.core) throw new Error("Wallet not initialized.");
@@ -47,12 +51,19 @@
         ...app.state,
         customNetworks: response.networks ?? app.state.customNetworks,
       };
-      await app.switchNetwork(response.network.name);
-      await request.respond(response);
-    } catch (err) {
-      error = err instanceof Error ? err.message : "Failed to add network.";
-    }
-  }
+		await app.switchNetwork(response.network.name);
+		await request.respond(response);
+		app.core?.logger.info({ namespace: "dapp", event: "network-approved", fields: { network: response.network.name, genesisID: response.network.genesisID } });
+	} catch (err) {
+		error = err instanceof Error ? err.message : "Failed to add network.";
+		app.core?.logger.error({ namespace: "dapp", event: "network-approval-failed", error: err, fields: { network: network?.name, genesisID: network?.genesisID } });
+	}
+}
+
+async function reject() {
+	app.core?.logger.info({ namespace: "dapp", event: "network-rejected", fields: { network: network?.name, genesisID: network?.genesisID } });
+	await request.reject();
+}
 
   onMount(() => {
     void load();
@@ -123,7 +134,7 @@
       </Card.Content>
       <Card.Footer class="flex flex-wrap gap-2">
         <Button onclick={approve} disabled={!network}>Approve Network</Button>
-        <Button variant="outline" onclick={request.reject}>Reject</Button>
+		<Button variant="outline" onclick={reject}>Reject</Button>
       </Card.Footer>
     </Card.Root>
   {/if}

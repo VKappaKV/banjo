@@ -92,11 +92,16 @@ export async function saveHotAccount(args: {
 	markHot?: boolean;
 }): Promise<BanjoAccount> {
 	await storeHotAccountKey(args);
+	const address = addressOf(args.account);
+
+	if (!args.state.hotKeyAddresses.includes(address)) {
+		args.state.hotKeyAddresses = [...args.state.hotKeyAddresses, address];
+	}
 
 	return appendAccount({
 		state: args.state,
 		storage: args.storage,
-		account: { addr: addressOf(args.account), ...(args.markHot ? { hot: true } : {}) },
+		account: { addr: address, ...(args.markHot ? { hot: true } : {}) },
 	});
 }
 

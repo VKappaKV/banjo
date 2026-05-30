@@ -23,6 +23,7 @@
 		const next = !app.state.fallbackEnabled;
 		await setFallbackEnabled(core.storage, next);
 		app.state = { ...app.state, fallbackEnabled: next };
+		core.logger.info({ namespace: "settings", event: "fallback-toggled", fields: { enabled: next } });
 		app.notify(`Fallback endpoints ${next ? "enabled" : "disabled"}`, "info");
 	}
 
@@ -39,6 +40,7 @@
 		if (!val) {
 			await setSandboxRouter(core.storage, undefined);
 			app.state = { ...app.state, sandboxRouter: undefined };
+			core.logger.info({ namespace: "settings", event: "sandbox-router-cleared" });
 			app.notify("Sandbox router cleared", "info");
 			return;
 		}
@@ -49,12 +51,14 @@
 		}
 		await setSandboxRouter(core.storage, num);
 		app.state = { ...app.state, sandboxRouter: num };
+		core.logger.info({ namespace: "settings", event: "sandbox-router-set", fields: { appId: num } });
 		app.notify(`Sandbox router set to ${num}`, "info");
 	}
 
 	async function createRouter() {
 		const core = getCore();
 		creatingRouter = true;
+		core.logger.info({ namespace: "arc59", event: "router-create-started", fields: { network: app.selectedNetwork.name } });
 		try {
 			const signers = selectSigningAccounts(app.state);
 			const sender = signers[0]?.addr.toString();
@@ -76,8 +80,10 @@
 			await setSandboxRouter(core.storage, id);
 			app.state = { ...app.state, sandboxRouter: id };
 			sandboxRouterStr = id.toString();
+			core.logger.info({ namespace: "arc59", event: "router-created", fields: { appId: id, network: app.selectedNetwork.name } });
 			app.notify(`ARC-59 router created: ${id}`, "success");
 		} catch (err) {
+			core.logger.error({ namespace: "arc59", event: "router-create-failed", error: err, fields: { network: app.selectedNetwork.name } });
 			app.notify(err instanceof Error ? err.message : "Failed to create ARC-59 router", "error");
 		} finally {
 			creatingRouter = false;

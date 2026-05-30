@@ -37,19 +37,22 @@
       return;
     }
 
-    try {
-      const account = await importHotMnemonic({
+	try {
+		app.core.logger.info({ namespace: "onboarding", event: "hot-import-started" });
+		const account = await importHotMnemonic({
         mnemonic: trimmed,
         state: app.state,
         storage: app.core.storage,
         cryptoProvider: app.core.cryptoProvider,
       });
-      success = `Imported ${account.addr.slice(0, 8)}...`;
-      await app.refreshWallet();
-    } catch (e) {
-      error = e instanceof Error ? e.message : "Import failed.";
-    }
-  }
+		success = `Imported ${account.addr.slice(0, 8)}...`;
+		app.core.logger.info({ namespace: "onboarding", event: "hot-import-completed", fields: { address: account.addr } });
+		await app.refreshWallet();
+	} catch (e) {
+		error = e instanceof Error ? e.message : "Import failed.";
+		app.core.logger.error({ namespace: "onboarding", event: "hot-import-failed", error: e });
+	}
+}
 </script>
 
 <div class="grid gap-4">

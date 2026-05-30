@@ -17,6 +17,7 @@ import { assetHoldingId } from "$lib/app/portfolio";
 import { queryClient } from "$lib/app/query-client";
 import { queryKeys } from "$lib/app/query-keys";
 import type { WalletAppState } from "$lib/app/wallet-app-state.svelte";
+import { createLogCorrelationId } from "$core/logging";
 
 export type SwapMode = "propose" | "accept";
 
@@ -86,6 +87,7 @@ export class SwapPageState {
 
 	setMode = (mode: SwapMode): void => {
 		this.mode = mode;
+		this.app.core?.logger.info({ namespace: "swap", event: "mode-selected", fields: { mode } });
 	};
 
 	setSender = (value: string | string[] | undefined): void => {
@@ -100,6 +102,7 @@ export class SwapPageState {
 		this.mode = "accept";
 		this.acceptTx1 = tx1;
 		this.acceptTx2 = tx2;
+		this.app.core?.logger.info({ namespace: "swap", event: "acceptance-request-loaded", fields: { hasTx1: !!tx1, hasTx2: !!tx2 } });
 	};
 
 	private async suggestedParams(algod: ReturnType<typeof createAlgodClient>): Promise<SuggestedParams> {
@@ -142,6 +145,13 @@ export class SwapPageState {
 	buildProposal = async (): Promise<void> => {
 		this.error = "";
 		this.proposal = "";
+		const correlationId = createLogCorrelationId("swap-proposal");
+		this.app.core?.logger.info({
+			namespace: "swap",
+			event: "proposal-build-started",
+			correlationId,
+			fields: { network: this.selectedNetwork.name, senderAssetId: this.senderAssetId, receiverAssetId: this.receiverAssetId },
+		});
 		try {
 			if (!this.app.core) throw new Error("Wallet not initialized.");
 			if (!algosdk.isValidAddress(this.receiver.trim())) throw new Error("Receiver must be a valid Algorand address.");
@@ -161,8 +171,10 @@ export class SwapPageState {
 			if (!signedTxn1) throw new Error("First swap transaction was not signed.");
 
 			this.proposal = JSON.stringify(serializeSwapProposal({ signedTxn1, unsignedTxn2: built.txn2 }));
+			this.app.core?.logger.info({ namespace: "swap", event: "proposal-build-completed", correlationId });
 		} catch (err) {
 			this.error = err instanceof Error ? err.message : "Failed to build swap proposal.";
+			this.app.core?.logger.warn({ namespace: "swap", event: "proposal-build-failed", correlationId, error: err });
 		}
 	};
 
@@ -170,6 +182,8 @@ export class SwapPageState {
 		this.error = "";
 		this.result = "";
 		this.accepting = true;
+		const correlationId = createLogCorrelationId("swap-accept");
+		this.app.core?.logger.info({ namespace: "swap", event: "accept-started", correlationId });
 		try {
 			let tx1 = this.acceptTx1.trim();
 			let tx2 = this.acceptTx2.trim();
@@ -186,6 +200,12 @@ export class SwapPageState {
 				algodForNetwork: (network) => createAlgodClient(network, this.app.state.fallbackEnabled),
 			});
 			const plan = buildSwapAcceptancePlan(validated);
+			this.app.core?.logger.info({
+				namespace: "swap",
+				event: "accept-validated",
+				correlationId,
+				fields: { network: validated.network.name, indexesToSign: plan.indexesToSign.length },
+			});
 			const signed = await this.signTransactions([...plan.transactions], plan.indexesToSign);
 			const signedTxn2 = signed[1];
 			if (!signedTxn2) throw new Error("Second swap transaction was not signed.");
@@ -197,9 +217,11 @@ export class SwapPageState {
 			});
 			await queryClient.invalidateQueries({ queryKey: queryKeys.accounts(this.app.state.networkName) });
 			this.result = "Swap accepted and submitted.";
+			this.app.core?.logger.info({ namespace: "swap", event: "accept-submitted", correlationId, fields: { network: validated.network.name } });
 			await this.onAccepted?.();
 		} catch (err) {
 			this.error = err instanceof Error ? err.message : "Failed to accept swap.";
+			this.app.core?.logger.error({ namespace: "swap", event: "accept-failed", correlationId, error: err });
 		} finally {
 			this.accepting = false;
 		}

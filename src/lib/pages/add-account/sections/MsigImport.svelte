@@ -44,9 +44,10 @@
       return;
     }
 
-    step = "loading";
+	step = "loading";
+	app.core.logger.info({ namespace: "arc55", event: "app-import-load-started", fields: { appId } });
 
-    try {
+	try {
       const network = selectNetwork(app.state, builtInNetworks);
       const algod = createAlgodClient(network, app.state.fallbackEnabled);
 
@@ -57,7 +58,8 @@
         return;
       }
 
-      loadedApp = arc55;
+		loadedApp = arc55;
+		app.core.logger.info({ namespace: "arc55", event: "app-import-load-completed", fields: { appId, threshold: Number(arc55.arc55_threshold), memberCount: arc55.addrs.length } });
 
       try {
         validateArc55Import(arc55, app.accounts);
@@ -67,9 +69,10 @@
           e instanceof Error ? e.message : "Cannot import this app.";
         step = "confirm";
       }
-    } catch (e) {
-      error = e instanceof Error ? e.message : "Failed to load app.";
-      step = "form";
+	} catch (e) {
+		error = e instanceof Error ? e.message : "Failed to load app.";
+		app.core.logger.error({ namespace: "arc55", event: "app-import-load-failed", error: e, fields: { appId } });
+		step = "form";
     }
   }
 
@@ -77,19 +80,22 @@
     if (!loadedApp || !app.core) return;
     error = "";
 
-    try {
-      const account = accountFromArc55App(loadedApp, app.state.networkName);
+	try {
+		app.core.logger.info({ namespace: "arc55", event: "app-import-started", fields: { appId: loadedApp.info.id.toString() } });
+		const account = accountFromArc55App(loadedApp, app.state.networkName);
       await appendAccount({
         state: app.state,
         storage: app.core.storage,
         account,
-      });
-      step = "done";
-      await app.refreshWallet();
-    } catch (e) {
-      error = e instanceof Error ? e.message : "Import failed.";
-    }
-  }
+		});
+		step = "done";
+		app.core.logger.info({ namespace: "arc55", event: "app-import-completed", fields: { appId: loadedApp.info.id.toString() } });
+		await app.refreshWallet();
+	} catch (e) {
+		error = e instanceof Error ? e.message : "Import failed.";
+		app.core.logger.error({ namespace: "arc55", event: "app-import-failed", error: e });
+	}
+}
 </script>
 
 <div class="grid gap-4">

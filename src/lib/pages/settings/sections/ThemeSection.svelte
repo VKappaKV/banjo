@@ -26,10 +26,13 @@
 			return;
 		}
 		clearing = true;
+		app.core.logger.info({ namespace: "settings", event: "asset-cache-clear-started" });
 		try {
 			await app.core.storage.clearAllAssets();
+			app.core.logger.info({ namespace: "settings", event: "asset-cache-cleared" });
 			app.notify("Asset cache cleared", "info");
-		} catch {
+		} catch (error) {
+			app.core.logger.error({ namespace: "settings", event: "asset-cache-clear-failed", error });
 			app.notify("Failed to clear asset cache", "error");
 		} finally {
 			clearing = false;

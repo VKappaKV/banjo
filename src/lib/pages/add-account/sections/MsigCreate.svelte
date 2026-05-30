@@ -80,9 +80,10 @@
       return;
     }
 
-    step = "deploying";
+	step = "deploying";
+	app.core.logger.info({ namespace: "arc55", event: "app-create-started", fields: { threshold, memberCount: addrs.length } });
 
-    try {
+	try {
       const network = selectNetwork(app.state, builtInNetworks);
       const algod = createAlgodClient(network, app.state.fallbackEnabled);
 
@@ -106,7 +107,8 @@
         signer,
       });
 
-      appId = result.appId;
+		appId = result.appId;
+		app.core.logger.info({ namespace: "arc55", event: "app-created", fields: { appId: result.appId.toString(), threshold, memberCount: addrs.length } });
 
       const loadedApp = {
         appId: Number(result.appId),
@@ -126,13 +128,14 @@
         account,
       });
 
-      step = "done";
-      await app.refreshWallet();
-    } catch (e) {
-      error = e instanceof Error ? e.message : "Deployment failed.";
-      step = "form";
-    }
-  }
+		step = "done";
+		await app.refreshWallet();
+	} catch (e) {
+		error = e instanceof Error ? e.message : "Deployment failed.";
+		app.core.logger.error({ namespace: "arc55", event: "app-create-failed", error: e, fields: { threshold, memberCount: addrs.length } });
+		step = "form";
+	}
+}
 </script>
 
 <div class="grid gap-4">

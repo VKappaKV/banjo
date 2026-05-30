@@ -36,6 +36,7 @@ import { deriveBeaconKeypair } from "$p2p/beacon/beacon-crypto";
 import { lookupBeaconAnnouncement, submitBeaconNote } from "$p2p/beacon/beacon-indexer";
 import { BEACON_PROTO } from "$p2p/beacon/beacon-types";
 import type { SignalingEventHandler, SignalingTransport } from "$p2p/signaling-transport";
+import { createLogCorrelationId } from "$core/logging";
 
 const DEFAULT_RELAY_URL = "ws://localhost:9876";
 const SESSION_STORAGE_KEY = "banjo:workspace-session";
@@ -78,6 +79,7 @@ class WorkspacePageState {
   private session: WorkspaceSession | null = null;
   private app: WalletAppState | null = null;
   private presenceInterval: ReturnType<typeof setInterval> | null = null;
+  private sessionCorrelationId = "";
 
   resetState() {
     this.stopPresencePing();
@@ -106,6 +108,7 @@ class WorkspacePageState {
     this.beaconInitialized = false;
     this.beaconBusy = false;
     this.beaconStatus = "";
+    this.sessionCorrelationId = "";
     this.loadSavedSession();
   }
 
@@ -186,6 +189,13 @@ class WorkspacePageState {
     this.error = "";
     const sessionId = crypto.randomUUID().slice(0, 8);
     this.sessionId = sessionId;
+    this.sessionCorrelationId = createLogCorrelationId("workspace");
+    this.app?.core?.logger.info({
+      namespace: "workspace",
+      event: "relay-session-create-started",
+      correlationId: this.sessionCorrelationId,
+      fields: { mode: this.mode, signalingMode: this.signalingMode },
+    });
     this.connectSession(sessionId);
   };
 
@@ -193,6 +203,7 @@ class WorkspacePageState {
     if (!this.app) return;
     this.refreshBeaconConfig();
     if (!this.beaconConfigured) {
+      this.app.core?.logger.warn({ namespace: "workspace", event: "beacon-config-missing", fields: { network: this.selectedNetwork.name, envName: this.beaconProtocolEnvName } });
       this.error = `BEACON protocol address is not configured for ${this.selectedNetwork.name}. Set ${this.beaconProtocolEnvName}.`;
       this.status = "error";
       return;
@@ -212,6 +223,13 @@ class WorkspacePageState {
     this.beaconStatus = "Preparing encrypted BEACON offer...";
     const sessionId = crypto.randomUUID().slice(0, 8);
     this.sessionId = sessionId;
+    this.sessionCorrelationId = createLogCorrelationId("beacon");
+    this.app.core?.logger.info({
+      namespace: "workspace",
+      event: "beacon-offer-started",
+      correlationId: this.sessionCorrelationId,
+      fields: { network: this.selectedNetwork.name, configured: this.beaconConfigured },
+    });
     this.connectSession(sessionId, (onEvent) => createBeaconSignalingTransport({
       app: this.app!,
       network: this.selectedNetwork,
@@ -228,6 +246,7 @@ class WorkspacePageState {
     if (!this.app) return;
     this.refreshBeaconConfig();
     if (!this.beaconConfigured) {
+      this.app.core?.logger.warn({ namespace: "workspace", event: "beacon-config-missing", fields: { network: this.selectedNetwork.name, envName: this.beaconProtocolEnvName } });
       this.error = `BEACON protocol address is not configured for ${this.selectedNetwork.name}. Set ${this.beaconProtocolEnvName}.`;
       this.status = "error";
       return;
@@ -242,6 +261,13 @@ class WorkspacePageState {
     this.beaconStatus = "Listening for encrypted BEACON offers...";
     const sessionId = crypto.randomUUID().slice(0, 8);
     this.sessionId = sessionId;
+    this.sessionCorrelationId = createLogCorrelationId("beacon");
+    this.app.core?.logger.info({
+      namespace: "workspace",
+      event: "beacon-listen-started",
+      correlationId: this.sessionCorrelationId,
+      fields: { network: this.selectedNetwork.name, configured: this.beaconConfigured },
+    });
     this.connectSession(sessionId, (onEvent) => createBeaconSignalingTransport({
       app: this.app!,
       network: this.selectedNetwork,
@@ -258,6 +284,8 @@ class WorkspacePageState {
     this.status = "connecting";
     this.error = "";
     this.sessionId = sessionId;
+    this.sessionCorrelationId = createLogCorrelationId("workspace");
+    this.app?.core?.logger.info({ namespace: "workspace", event: "relay-session-join-started", correlationId: this.sessionCorrelationId, fields: { mode: this.mode, signalingMode: this.signalingMode } });
     this.connectSession(sessionId);
   };
 
@@ -270,6 +298,7 @@ class WorkspacePageState {
     }
     this.beaconBusy = true;
     this.beaconStatus = "Checking BEACON announcement...";
+    this.app.core?.logger.info({ namespace: "workspace", event: "beacon-announcement-check-started", fields: { network: this.selectedNetwork.name } });
     try {
       const announcement = await lookupBeaconAnnouncement({
         network: this.selectedNetwork,
@@ -279,8 +308,10 @@ class WorkspacePageState {
       });
       this.beaconInitialized = !!announcement?.wpk;
       this.beaconStatus = this.beaconInitialized ? "BEACON initialized." : "BEACON announcement not found.";
+      this.app.core?.logger.info({ namespace: "workspace", event: "beacon-announcement-check-completed", fields: { initialized: this.beaconInitialized } });
     } catch (err) {
       this.beaconStatus = err instanceof Error ? err.message : "Could not check BEACON announcement.";
+      this.app.core?.logger.warn({ namespace: "workspace", event: "beacon-announcement-check-failed", error: err });
     } finally {
       this.beaconBusy = false;
     }
@@ -290,6 +321,7 @@ class WorkspacePageState {
     if (!this.app) return;
     this.refreshBeaconConfig();
     if (!this.beaconConfigured) {
+      this.app.core?.logger.warn({ namespace: "workspace", event: "beacon-config-missing", fields: { network: this.selectedNetwork.name, envName: this.beaconProtocolEnvName } });
       this.error = `BEACON protocol address is not configured for ${this.selectedNetwork.name}. Set ${this.beaconProtocolEnvName}.`;
       return;
     }
@@ -300,6 +332,8 @@ class WorkspacePageState {
     this.beaconBusy = true;
     this.error = "";
     this.beaconStatus = "Deriving BEACON key and broadcasting announcement...";
+    const correlationId = createLogCorrelationId("beacon-init");
+    this.app.core?.logger.info({ namespace: "workspace", event: "beacon-initialize-started", correlationId, fields: { network: this.selectedNetwork.name } });
     try {
       const keypair = await deriveBeaconKeypair({
         app: this.app,
@@ -318,9 +352,11 @@ class WorkspacePageState {
       this.beaconInitialized = true;
       this.beaconStatus = txid ? `BEACON initialized: ${txid.slice(0, 8)}...` : "BEACON initialized.";
       this.app.notify("BEACON initialized", "success", 3000);
+      this.app.core?.logger.info({ namespace: "workspace", event: "beacon-initialize-completed", correlationId, fields: { txId: txid } });
     } catch (err) {
       this.error = err instanceof Error ? err.message : "Failed to initialize BEACON.";
       this.beaconStatus = this.error;
+      this.app.core?.logger.error({ namespace: "workspace", event: "beacon-initialize-failed", correlationId, error: err });
     } finally {
       this.beaconBusy = false;
     }
@@ -351,15 +387,18 @@ class WorkspacePageState {
           this.peers = [...this.peers];
           if (connected && !knownPeers.has(peerId) && this.app) {
             knownPeers.add(peerId);
+            this.app.core?.logger.info({ namespace: "workspace", event: "peer-connected", correlationId: this.sessionCorrelationId, fields: { signalingMode: this.signalingMode } });
             this.app.notify(`Peer joined workspace`, "success", 3000);
           } else if (!connected && knownPeers.has(peerId) && this.app) {
             knownPeers.delete(peerId);
+            this.app.core?.logger.info({ namespace: "workspace", event: "peer-disconnected", correlationId: this.sessionCorrelationId, fields: { signalingMode: this.signalingMode } });
             this.app.notify(`Peer left workspace`, "warning", 3000);
           }
         },
         onTransactionProposed: (tx: TransactionDraft, sender: string) => {
           this.transactions = [...this.transactions];
           this.transitionTxId = tx.id;
+          this.app?.core?.logger.info({ namespace: "workspace", event: "transaction-proposed-received", correlationId: this.sessionCorrelationId, fields: { type: tx.type, mode: this.mode, local: sender === this.peerId } });
           if (sender !== this.peerId && this.app) {
             this.app.notify(`New ${tx.type} transaction proposed`, "info", 3000);
           }
@@ -373,6 +412,7 @@ class WorkspacePageState {
         onTransactionSigned: (txId: string, _sig: PeerSignature, sender: string) => {
           this.transactions = [...this.transactions];
           this.transitionTxId = txId;
+          this.app?.core?.logger.info({ namespace: "workspace", event: "transaction-signed-received", correlationId: this.sessionCorrelationId, fields: { local: sender === this.peerId } });
           if (sender !== this.peerId && this.app) {
             this.app.notify(`Peer signed a transaction`, "success", 3000);
           }
@@ -383,17 +423,21 @@ class WorkspacePageState {
             this.error = this.signalingMode === "beacon"
               ? "BEACON signaling failed. Check protocol address config, recipient announcement, and network connectivity."
               : "Relay server not reachable. Make sure the relay is running (`node server/relay.mjs`).";
+            this.app?.core?.logger.error({ namespace: "workspace", event: "connection-exhausted", correlationId: this.sessionCorrelationId, fields: { signalingMode: this.signalingMode } });
           } else if (!connected && this.status === "connected") {
             this.status = "error";
             this.error = "Connection lost — reconnecting...";
+            this.app?.core?.logger.warn({ namespace: "workspace", event: "connection-lost", correlationId: this.sessionCorrelationId, fields: { signalingMode: this.signalingMode } });
           } else if (!connected && this.status === "connecting") {
             this.status = "error";
             this.error = this.signalingMode === "beacon"
               ? "Could not start BEACON signaling."
               : "Could not reach relay server. Is it running?";
+            this.app?.core?.logger.warn({ namespace: "workspace", event: "connection-start-failed", correlationId: this.sessionCorrelationId, fields: { signalingMode: this.signalingMode } });
           } else if (connected && (this.status === "error" || this.status === "connecting")) {
             this.status = "connected";
             this.error = "";
+            this.app?.core?.logger.info({ namespace: "workspace", event: "connection-restored", correlationId: this.sessionCorrelationId, fields: { signalingMode: this.signalingMode } });
           }
         },
       };
@@ -414,11 +458,13 @@ class WorkspacePageState {
       this.peerId = this.session.peerId;
       this.status = "connected";
       this.saveSession();
+      this.app?.core?.logger.info({ namespace: "workspace", event: "session-connected", correlationId: this.sessionCorrelationId, fields: { mode: this.mode, signalingMode: this.signalingMode } });
 
       this.startPresencePing();
     } catch (err) {
       this.error = err instanceof Error ? err.message : "Failed to connect.";
       this.status = "error";
+      this.app?.core?.logger.error({ namespace: "workspace", event: "session-connect-failed", correlationId: this.sessionCorrelationId, error: err, fields: { mode: this.mode, signalingMode: this.signalingMode } });
     }
   }
 
@@ -484,6 +530,7 @@ class WorkspacePageState {
   }
 
   disconnect = () => {
+    this.app?.core?.logger.info({ namespace: "workspace", event: "session-disconnected", correlationId: this.sessionCorrelationId, fields: { mode: this.mode, signalingMode: this.signalingMode } });
     this.stopPresencePing();
     this.session?.close();
     this.session = null;
@@ -508,6 +555,7 @@ class WorkspacePageState {
     }
 
     this.session.proposeTransaction(tx);
+    this.app?.core?.logger.info({ namespace: "workspace", event: "transaction-proposed", correlationId: this.sessionCorrelationId, fields: { type: tx.type, mode: this.mode } });
   };
 
   updateTransaction = (txId: string, changes: Partial<TransactionDraft>) => {
@@ -541,6 +589,8 @@ class WorkspacePageState {
     this.signingStep = "signing";
     this.signingTxId = txId;
     this.error = "";
+    const correlationId = createLogCorrelationId("workspace-sign");
+    this.app.core?.logger.info({ namespace: "workspace", event: "transaction-sign-started", correlationId, fields: { mode: this.mode } });
 
     try {
       const draft = this.transactions.find((t) => t.id === txId);
@@ -569,9 +619,11 @@ class WorkspacePageState {
 
       this.password = "";
       this.signingStep = "idle";
+      this.app.core?.logger.info({ namespace: "workspace", event: "transaction-sign-completed", correlationId, fields: { mode: this.mode } });
     } catch (err) {
       this.error = err instanceof Error ? err.message : "Failed to sign transaction.";
       this.signingStep = "error";
+      this.app.core?.logger.error({ namespace: "workspace", event: "transaction-sign-failed", correlationId, error: err, fields: { mode: this.mode } });
     }
   };
 
@@ -603,6 +655,8 @@ class WorkspacePageState {
     this.signingStep = "signing";
     this.signingTxId = txId;
     this.error = "";
+    const correlationId = createLogCorrelationId("workspace-swap-sign");
+    this.app.core?.logger.info({ namespace: "workspace", event: "swap-side-sign-started", correlationId });
 
     try {
       const pair = this.swapPairs.find((p) => p.id === groupId);
@@ -625,9 +679,11 @@ class WorkspacePageState {
 
       this.password = "";
       this.signingStep = "idle";
+      this.app.core?.logger.info({ namespace: "workspace", event: "swap-side-sign-completed", correlationId });
     } catch (err) {
       this.error = err instanceof Error ? err.message : "Failed to sign swap side.";
       this.signingStep = "error";
+      this.app.core?.logger.error({ namespace: "workspace", event: "swap-side-sign-failed", correlationId, error: err });
     }
   };
 
@@ -635,6 +691,8 @@ class WorkspacePageState {
     if (!this.app) return;
     this.signingStep = "submitting";
     this.error = "";
+    const correlationId = createLogCorrelationId("workspace-swap-submit");
+    this.app.core?.logger.info({ namespace: "workspace", event: "swap-group-submit-started", correlationId });
 
     try {
       const pair = this.swapPairs.find((p) => p.id === groupId);
@@ -661,9 +719,11 @@ class WorkspacePageState {
       );
       this.submittedTxIds = [txid];
       this.signingStep = "done";
+      this.app.core?.logger.info({ namespace: "workspace", event: "swap-group-submit-completed", correlationId, fields: { txId: txid } });
     } catch (err) {
       this.error = err instanceof Error ? err.message : "Failed to submit swap group.";
       this.signingStep = "error";
+      this.app.core?.logger.error({ namespace: "workspace", event: "swap-group-submit-failed", correlationId, error: err });
     }
   };
 
@@ -672,6 +732,8 @@ class WorkspacePageState {
     this.signingStep = "submitting";
     this.signingTxId = txId;
     this.error = "";
+    const correlationId = createLogCorrelationId("workspace-multisig-submit");
+    this.app.core?.logger.info({ namespace: "workspace", event: "multisig-submit-started", correlationId, fields: { threshold: this.multisigConfig.threshold } });
 
     try {
       const draft = this.transactions.find((t) => t.id === txId);
@@ -690,9 +752,11 @@ class WorkspacePageState {
       this.session?.updateTransaction(txId, { status: "submitted" });
       this.submittedTxIds = [txid];
       this.signingStep = "done";
+      this.app.core?.logger.info({ namespace: "workspace", event: "multisig-submit-completed", correlationId, fields: { txId: txid } });
     } catch (err) {
       this.error = err instanceof Error ? err.message : "Failed to submit multisig transaction.";
       this.signingStep = "error";
+      this.app.core?.logger.error({ namespace: "workspace", event: "multisig-submit-failed", correlationId, error: err });
     }
   };
 
@@ -701,6 +765,8 @@ class WorkspacePageState {
     this.signingStep = "submitting";
     this.signingTxId = txId;
     this.error = "";
+    const correlationId = createLogCorrelationId("workspace-submit");
+    this.app.core?.logger.info({ namespace: "workspace", event: "transaction-submit-started", correlationId, fields: { mode: this.mode } });
 
     try {
       const draft = this.transactions.find((t) => t.id === txId);
@@ -714,9 +780,11 @@ class WorkspacePageState {
       this.session?.updateTransaction(txId, { status: "submitted" });
       this.submittedTxIds = txIds;
       this.signingStep = "done";
+      this.app.core?.logger.info({ namespace: "workspace", event: "transaction-submit-completed", correlationId, fields: { txIds } });
     } catch (err) {
       this.error = err instanceof Error ? err.message : "Failed to submit transaction.";
       this.signingStep = "error";
+      this.app.core?.logger.error({ namespace: "workspace", event: "transaction-submit-failed", correlationId, error: err, fields: { mode: this.mode } });
     }
   };
 
@@ -724,6 +792,8 @@ class WorkspacePageState {
     if (!this.app) return;
     this.signingStep = "submitting";
     this.error = "";
+    const correlationId = createLogCorrelationId("workspace-submit-all");
+    this.app.core?.logger.info({ namespace: "workspace", event: "submit-all-started", correlationId });
 
     try {
       const algod = createAlgodClient(this.selectedNetwork, this.app.state.fallbackEnabled);
@@ -739,9 +809,11 @@ class WorkspacePageState {
 
       this.submittedTxIds = txIds;
       this.signingStep = "done";
+      this.app.core?.logger.info({ namespace: "workspace", event: "submit-all-completed", correlationId, fields: { txIds } });
     } catch (err) {
       this.error = err instanceof Error ? err.message : "Failed to submit transactions.";
       this.signingStep = "error";
+      this.app.core?.logger.error({ namespace: "workspace", event: "submit-all-failed", correlationId, error: err });
     }
   };
 
@@ -763,6 +835,7 @@ class WorkspacePageState {
 
     this.updateTransaction(txn1Id, { swapGroupId: pairId });
     this.updateTransaction(txn2Id, { swapGroupId: pairId });
+    this.app?.core?.logger.info({ namespace: "workspace", event: "swap-pair-assigned", correlationId: this.sessionCorrelationId });
 
     return pairId;
   }

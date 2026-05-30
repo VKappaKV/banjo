@@ -33,19 +33,22 @@
       return;
     }
 
-    try {
-      const account = await addWatchAccount({
+	try {
+		app.core.logger.info({ namespace: "onboarding", event: "watch-add-started" });
+		const account = await addWatchAccount({
         address: trimmed,
         state: app.state,
         storage: app.core.storage,
       });
-      success = `Watching ${account.addr.slice(0, 8)}...`;
-      address = "";
+		success = `Watching ${account.addr.slice(0, 8)}...`;
+		app.core.logger.info({ namespace: "onboarding", event: "watch-add-completed", fields: { address: account.addr } });
+		address = "";
       await app.refreshWallet();
-    } catch (e) {
-      error = e instanceof Error ? e.message : "Failed to add watch account.";
-    }
-  }
+	} catch (e) {
+		error = e instanceof Error ? e.message : "Failed to add watch account.";
+		app.core.logger.error({ namespace: "onboarding", event: "watch-add-failed", error: e });
+	}
+}
 </script>
 
 <div class="grid gap-4">

@@ -44,22 +44,26 @@
       return;
     }
 
-    let seed: Buffer;
-    try {
-      const { decryptStoredSeed } = await import("$core/keys");
+	let seed: Buffer;
+	try {
+		app.core.logger.info({ namespace: "onboarding", event: "falcon-seed-decrypt-started" });
+		const { decryptStoredSeed } = await import("$core/keys");
       seed = await decryptStoredSeed({
         passphrase,
         seedData,
         cryptoProvider: app.core.cryptoProvider,
-      });
-    } catch (e) {
-      error = e instanceof Error ? e.message : "Incorrect passphrase.";
-      return;
+		});
+		app.core.logger.info({ namespace: "onboarding", event: "falcon-seed-decrypt-completed" });
+	} catch (e) {
+		error = e instanceof Error ? e.message : "Incorrect passphrase.";
+		app.core.logger.error({ namespace: "onboarding", event: "falcon-seed-decrypt-failed", error: e });
+		return;
     }
 
     step = "deriving";
-    try {
-      const network = selectNetwork(app.state, builtInNetworks);
+	try {
+		app.core.logger.info({ namespace: "onboarding", event: "falcon-add-started" });
+		const network = selectNetwork(app.state, builtInNetworks);
       const algod = createAlgodClient(network, app.state.fallbackEnabled);
 
       const account = await addFalconAccount({
@@ -70,12 +74,14 @@
         storage: app.core.storage,
         zeroizeSeed: true,
       });
-      savedAddr = account.addr;
-      step = "done";
+		savedAddr = account.addr;
+		app.core.logger.info({ namespace: "onboarding", event: "falcon-add-completed", fields: { address: account.addr } });
+		step = "done";
       await app.refreshWallet();
-    } catch (e) {
-      error = e instanceof Error ? e.message : "Falcon derivation failed.";
-      step = "select-seed";
+	} catch (e) {
+		error = e instanceof Error ? e.message : "Falcon derivation failed.";
+		app.core.logger.error({ namespace: "onboarding", event: "falcon-add-failed", error: e });
+		step = "select-seed";
     }
   }
 </script>

@@ -6,9 +6,11 @@ import {
 	BrowserCredentialProvider,
 	BrowserCryptoProvider,
 	browserFetchJson,
+	createBrowserLogger,
 	createBrowserWalletRuntime,
 	createInternalModalSigningAdapter,
 } from "$core/adapters";
+import type { BanjoLogger } from "$core/logging";
 import { createIndexedDbWalletStorage } from "$core/storage";
 
 export interface WalletCoreCallbacks {
@@ -17,6 +19,7 @@ export interface WalletCoreCallbacks {
 	onOverlay?: NonNullable<WalletRuntime["setOverlay"]>;
 	onConfirm?: NonNullable<WalletRuntime["confirm"]>;
 	onSendMessage?: NonNullable<WalletRuntime["sendMessage"]>;
+	isDebugEnabled?: () => boolean;
 	requestWalletTransactionApproval?: (walletTxns: WalletTransaction[]) => Promise<WalletSignedTransaction[]>;
 }
 
@@ -27,6 +30,7 @@ export interface WalletCoreServices {
 	credentialProvider: CredentialProvider;
 	ledgerProvider: LedgerProvider;
 	fetchJson: FetchJson;
+	logger: BanjoLogger;
 	approvalController?: SigningApprovalController;
 }
 
@@ -37,9 +41,12 @@ class BrowserLedgerProvider implements LedgerProvider {
 }
 
 export function createWalletCore(callbacks: WalletCoreCallbacks = {}): WalletCoreServices {
+	const logger = createBrowserLogger({ isDebugEnabled: callbacks.isDebugEnabled });
+
 	return {
 		storage: createIndexedDbWalletStorage(),
 		runtime: createBrowserWalletRuntime({
+			logger,
 			onNotify: callbacks.onNotify,
 			onLoading: callbacks.onLoading,
 			onOverlay: callbacks.onOverlay,
@@ -50,6 +57,7 @@ export function createWalletCore(callbacks: WalletCoreCallbacks = {}): WalletCor
 		credentialProvider: new BrowserCredentialProvider(),
 		ledgerProvider: new BrowserLedgerProvider(),
 		fetchJson: browserFetchJson,
+		logger,
 		approvalController: callbacks.requestWalletTransactionApproval
 			? createInternalModalSigningAdapter({
 					requestWalletTransactionApproval: callbacks.requestWalletTransactionApproval,

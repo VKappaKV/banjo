@@ -41,25 +41,29 @@
       return;
     }
 
-    try {
-      const network = selectNetwork(app.state, builtInNetworks);
+	try {
+		app.core.logger.info({ namespace: "onboarding", event: "kmd-load-started" });
+		const network = selectNetwork(app.state, builtInNetworks);
       const kmd = createKmdClient(network);
       const algod = createAlgodClient(network, app.state.fallbackEnabled);
 
-      const result = await loadKmdImportCandidates({ kmd, algod });
-      candidates = result;
-      step = "select";
-    } catch (e) {
-      error = e instanceof Error ? e.message : "Failed to load KMD accounts.";
-      step = "select";
+		const result = await loadKmdImportCandidates({ kmd, algod });
+		candidates = result;
+		app.core.logger.info({ namespace: "onboarding", event: "kmd-load-completed", fields: { candidateCount: result.privateAccounts.length } });
+		step = "select";
+	} catch (e) {
+		error = e instanceof Error ? e.message : "Failed to load KMD accounts.";
+		app.core.logger.error({ namespace: "onboarding", event: "kmd-load-failed", error: e });
+		step = "select";
     }
   }
 
   async function handleImport() {
     if (!app.core || !candidates) return;
     error = "";
-    try {
-      const selected = candidates.privateAccounts.filter((a) =>
+	try {
+		app.core.logger.info({ namespace: "onboarding", event: "kmd-import-started", fields: { selectedCount: selectedAddresses.size } });
+		const selected = candidates.privateAccounts.filter((a) =>
         selectedAddresses.has(a.addr as unknown as string),
       );
       if (selected.length === 0) {
@@ -74,13 +78,15 @@
         storage: app.core.storage,
         cryptoProvider: app.core.cryptoProvider,
       });
-      addedCount = added.length;
-      step = "done";
+		addedCount = added.length;
+		app.core.logger.info({ namespace: "onboarding", event: "kmd-import-completed", fields: { addedCount: added.length } });
+		step = "done";
       await app.refreshWallet();
-    } catch (e) {
-      error = e instanceof Error ? e.message : "Import failed.";
-    }
-  }
+	} catch (e) {
+		error = e instanceof Error ? e.message : "Import failed.";
+		app.core.logger.error({ namespace: "onboarding", event: "kmd-import-failed", error: e });
+	}
+}
 </script>
 
 <div class="grid gap-4">

@@ -1,7 +1,7 @@
 import { Buffer } from "buffer";
 import { describe, expect, it } from "vitest";
 import algosdk, { type Algodv2, type modelsv2 } from "algosdk";
-import { createInitialWalletState } from "../state";
+import { createInitialWalletState, selectAccountInfo } from "../state";
 import { addHdAccounts, addLedgerAccounts, addWatchAccount } from "../accounts";
 import { MockCredentialProvider } from "../testing/mock-credential";
 import { MockLedgerProvider } from "../testing/mock-ledger";
@@ -101,6 +101,8 @@ describe("hot accounts", () => {
 
 		expect(key?.extractable).toBe(false);
 		expect(state.accounts).toEqual([{ addr: account.addr }]);
+		expect(state.hotKeyAddresses).toContain(account.addr);
+		expect(selectAccountInfo(state).find((item) => item.addr === account.addr)?.canSign).toBe(true);
 
 		const signature = await hotSign({ address: account.addr, bytesToSign: new Uint8Array([1, 2, 3]), storage });
 		expect(signature.byteLength).toBe(64);

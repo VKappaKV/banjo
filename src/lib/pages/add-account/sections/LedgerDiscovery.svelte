@@ -46,8 +46,9 @@
       return;
     }
 
-    try {
-      const network = selectNetwork(app.state, builtInNetworks);
+	try {
+		app.core.logger.info({ namespace: "onboarding", event: "ledger-discovery-started", fields: { offset } });
+		const network = selectNetwork(app.state, builtInNetworks);
       const algod = createAlgodClient(network, app.state.fallbackEnabled);
       const indexer = createIndexerClient(network, app.state.fallbackEnabled);
 
@@ -58,20 +59,23 @@
         algod,
         indexer,
       });
-      candidates = result;
-      startIndex = offset;
+		candidates = result;
+		app.core.logger.info({ namespace: "onboarding", event: "ledger-discovery-completed", fields: { offset, candidateCount: result.length } });
+		startIndex = offset;
       step = "select-accounts";
-    } catch (e) {
-      error = e instanceof Error ? e.message : "Ledger discovery failed.";
-      step = "select-accounts";
+	} catch (e) {
+		error = e instanceof Error ? e.message : "Ledger discovery failed.";
+		app.core.logger.error({ namespace: "onboarding", event: "ledger-discovery-failed", error: e, fields: { offset } });
+		step = "select-accounts";
     }
   }
 
   async function handleAdd() {
     if (!app.core) return;
     error = "";
-    try {
-      const selected = candidates.filter((c) =>
+	try {
+		app.core.logger.info({ namespace: "onboarding", event: "ledger-add-started", fields: { selectedCount: selectedAddresses.size } });
+		const selected = candidates.filter((c) =>
         selectedAddresses.has(c.address),
       );
       if (selected.length === 0) {
@@ -85,13 +89,15 @@
         state: app.state,
         storage: app.core.storage,
       });
-      addedCount = added.length;
-      step = "done";
+		addedCount = added.length;
+		app.core.logger.info({ namespace: "onboarding", event: "ledger-add-completed", fields: { addedCount: added.length } });
+		step = "done";
       await app.refreshWallet();
-    } catch (e) {
-      error = e instanceof Error ? e.message : "Failed to add accounts.";
-    }
-  }
+	} catch (e) {
+		error = e instanceof Error ? e.message : "Failed to add accounts.";
+		app.core.logger.error({ namespace: "onboarding", event: "ledger-add-failed", error: e });
+	}
+}
 </script>
 
 <div class="grid gap-4">

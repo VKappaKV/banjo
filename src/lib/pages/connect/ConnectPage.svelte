@@ -61,9 +61,10 @@
     selectedAddresses = next;
   }
 
-  async function approve() {
-    connectError = "";
-    try {
+	async function approve() {
+		connectError = "";
+		app.core?.logger.info({ namespace: "dapp", event: "connect-approval-started", fields: { selectedCount: selectedAddresses.size, requestedGenesisId: request.request?.genesisID } });
+		try {
       await app.initialize();
       if (request.request?.action !== "connect")
         throw new Error("No connect request is pending.");
@@ -82,14 +83,21 @@
       if (addresses.length === 0)
         throw new Error("Select at least one account.");
 
-      await request.respond(buildConnectResponse(addresses, app.state.debug));
-    } catch (error) {
-      connectError =
-        error instanceof Error
-          ? error.message
-          : "Failed to approve connect request.";
-    }
-  }
+		await request.respond(buildConnectResponse(addresses, app.state.debug));
+		app.core?.logger.info({ namespace: "dapp", event: "connect-approved", fields: { addressCount: addresses.length, network: network.name } });
+	} catch (error) {
+		connectError =
+			error instanceof Error
+				? error.message
+				: "Failed to approve connect request.";
+		app.core?.logger.warn({ namespace: "dapp", event: "connect-approval-failed", error, fields: { requestedGenesisId: request.request?.genesisID } });
+	}
+}
+
+	async function reject() {
+		app.core?.logger.info({ namespace: "dapp", event: "connect-rejected", fields: { requestedGenesisId: request.request?.genesisID } });
+		await request.reject();
+	}
 
   onMount(() => {
     void app.initialize().then(() => request.load());
@@ -170,7 +178,7 @@
           disabled={!targetNetwork || selectedAddresses.size === 0}
           >Approve</Button
         >
-        <Button variant="outline" onclick={request.reject}>Reject</Button>
+		<Button variant="outline" onclick={reject}>Reject</Button>
       </Card.Footer>
     </Card.Root>
   {/if}
