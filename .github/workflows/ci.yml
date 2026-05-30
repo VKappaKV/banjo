@@ -22,7 +22,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
-      - run: node server/relay.mjs &
+      - run: |
+          node server/relay.mjs &
           sleep 2
           pnpm test
         shell: bash
